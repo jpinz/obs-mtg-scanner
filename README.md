@@ -1,58 +1,82 @@
 # obs-mtg-scanner
 
-An OBS Browser Source overlay that identifies Magic: The Gathering cards held up to your webcam and shows an info panel with the card image, set, rarity, and current price.
+A web app that identifies Magic: The Gathering cards held up to your webcam and shows an info panel with the card image, set, rarity, and current price. It also gives you an overlay URL to add to OBS as a Browser Source.
 
-Recognition runs entirely in the browser using a fork of [CollectorVision](https://github.com/HanClinto/CollectorVision)'s web scanner (ONNX Runtime Web + the Milo embedding catalog), kept in [`collectorvision/`](collectorvision/README.md). Card details and prices come from the [Scryfall API](https://scryfall.com/docs/api).
+Recognition runs entirely in your browser using a fork of [CollectorVision](https://github.com/HanClinto/CollectorVision)'s web scanner (ONNX Runtime Web + the Milo embedding catalog), kept in [`collectorvision/`](collectorvision/README.md). Webcam video never leaves the browser. Card details and tracking coordinates go directly from the scanner page to OBS over its local WebSocket; they are not sent to Vercel. Card details and prices come from the [Scryfall API](https://scryfall.com/docs/api). The app is deployed on [Vercel](https://vercel.com).
 
-## Quick start
+## Using the scanner and OBS
 
-```bash
-git clone https://github.com/jpinz/obs-mtg-scanner.git
-cd obs-mtg-scanner
-npm install
-npm run dev        # http://localhost:5173
-```
+1. Open the app in a regular desktop browser (Chrome, Edge, or Firefox).
+2. Choose a webcam and start scanning. The first load downloads the models and live catalog; later loads reuse the browser cache. An internet connection is needed to check the live catalog feed.
+3. In OBS, enable the WebSocket server in **Tools → WebSocket Server Settings**. Keep the default port (`4455`) or enter your chosen port and password in the app.
+4. Use **Copy URL** under *OBS Browser Source*, then add an OBS **Browser Source** with that URL. Size and position it to match the camera feed so the card panel follows the detected card.
+5. Keep the scanner tab open while streaming. OBS and the scanner communicate directly on `localhost`; no card state is relayed through Vercel. OBS doesn't need camera permissions or the `--enable-media-stream` flag.
 
-`npm run dev` and `npm run build` first run `npm run setup`. That copies the forked scanner sources from `collectorvision/` and downloads CollectorVision's prebuilt model/catalog bundle (~43 MB, cached in `.cache/`) into `public/collectorvision/`. Run `node scripts/fetch-collectorvision.mjs --force` to refresh it. Extraction needs a `tar` with zstd support (built into Windows 10+ and macOS).
+The app also previews the same overlay over its camera feed. If another app (including an OBS *Video Capture Device* source) is already using the webcam, select **OBS Virtual Camera** in the app or release the camera in the other app.
 
-For a production build, run `npm run build && npm run preview`.
+When a WebSocket password is set, **Copy URL** includes it in the URL fragment (`#obsPassword=…`) so the Browser Source logs in automatically; the URL shown in the app masks it. Copy the URL again after changing the password. A fragment password takes precedence over a password saved in the Browser Source's browser profile and is not saved automatically. If the URL has no password and OBS requires one, use the Browser Source's **Interact** window to enter it. Fragments are not sent in the HTTP request to Vercel, but the password remains visible in OBS source settings; treat the copied URL as a secret.
 
-## Adding it to OBS
-
-1. **Enable camera access for browser sources.** Launch OBS with `--enable-media-stream`. For example, add it to the Target field of your OBS shortcut: `"C:\Program Files\obs-studio\bin\64bit\obs64.exe" --enable-media-stream`. Only use this flag if you trust every page you load in a browser source.
-2. **Free the webcam.** The overlay opens the camera itself and renders the video, so remove or disable any *Video Capture Device* source that uses the same camera.
-3. Add a **Browser Source**:
-   - URL: `http://localhost:5173/?currency=usd&pos=bottom-right` (see the options below)
-   - Width/Height: your canvas size, e.g. `1920` × `1080`
-   - Leave *Shutdown source when not visible* off, so the models stay loaded.
-
-The first load downloads the models and catalog. Later loads come from the browser cache.
+The default port is omitted from the URL; changing to a custom port requires copying the updated URL into OBS. The scanner must remain open while streaming.
 
 ## URL options
 
 | Param | Values | Default | Description |
 | --- | --- | --- | --- |
 | `currency` | `usd`, `usd_foil`, `usd_etched`, `eur`, `eur_foil`, `tix` | `usd` | Price to show. Falls back to the other finish of the same currency when missing. |
-| `pos` | `top-left`, `top-right`, `bottom-left`, `bottom-right` | `bottom-right` | Info panel corner |
-| `image` | `1` / `0` | `1` | Show the card image |
-| `set` | `1` / `0` | `1` | Show set, collector number, and rarity |
+| `image` | `1` / `0` | `1` | Show the pinned card image |
+| `name` | `1` / `0` | `1` | Show the pinned card name |
+| `info` | `1` / `0` | `1` | Show the pinned card details |
+| `details` | comma-separated `set`, `number`, `rarity`, `price`, or `none` | all | Fields shown in the pinned details |
+| `ipos`, `npos`, `dpos` | `x,y,width,height` fractions `0`–`1` | `0.8,0.06,0.1563,0.3871`, `0.8,0.47,0.18,0.05`, `0.8,0.53,0.18,0.2` | Box of the pinned image, name, and details. Drag them in the app preview to move them, or drag their edges and corners to resize. Text wraps inside the box; the image keeps its card proportions. |
+| `ts` | `8`–`96` | `16` | Base text size in canvas pixels for all overlay text |
+| `nts` | `8`–`96` | inherits (1.25 × `ts`) | Card name size in the pinned name |
+| `dts` | `8`–`96` | inherits `ts` | Base text size of the pinned details |
+| `dsz` | comma-separated `field:size`, e.g. `set:14,price:24` | inherits | Text size of individual detail lines |
+| `fts` | `8`–`96` | inherits `ts` | Base text size of the follow panel |
+| `follow` | `1` / `0` | `0` | Show a compact panel beside the tracked card |
+| `sides` | comma-separated `top`, `bottom`, `left`, `right`, or `none` | `top,bottom` | Sides of the card the follow panel may use; it picks the allowed side with the most room |
 | `duration` | seconds | `8` | How long the panel stays after the card leaves the frame (`0` = until the next card) |
 | `threshold` | `0`–`1` | `0.5` | Minimum match score |
-| `catalog` | `v2`, `v1` | `v2` | `v2` follows CollectorVision's live, up-to-date catalog (same as the hosted demo; cached after first load). `v1` uses the bundled offline snapshot. |
+| `setcode` | comma-separated set codes, e.g. `woe,mom` | all sets | Restrict recognition candidates to cards from any listed set. Case-insensitive; the parameter may also be repeated. |
+| `query` | Scryfall search syntax | no query filter | Restrict recognition candidates to cards matching a Scryfall query. May be combined with `setcode`. |
 | `camera` | device ID | default camera | Specific camera to use (`MediaDeviceInfo.deviceId`) |
 | `res` | `WIDTHxHEIGHT` | `1280x720` | Requested camera resolution |
 | `mirror` | `1` / `0` | `0` | Mirror the video (recognition always uses the unmirrored frame) |
 | `theme` | `dark`, `light` | `dark` | Panel theme |
 | `accent` | hex color | `f59e0b` | Panel accent color |
-| `scale` | `0.25`–`4` | `1` | Panel size multiplier |
 | `debug` | `1` / `0` | `0` | Show the detection outline, FPS, and scanner status |
+
+Older `scale` and `iw` options are still read: `scale` becomes `ts` (16 × scale) and `iw` sets the picture box size.
+
+The scanner always uses CollectorVision's live v2 catalog. Older `catalog` URL options are ignored, including `catalog=v1`.
+
+The scanner app's URL accepts these options. For example, adding `?setcode=woe,mom` restricts recognition to Wilds of Eldraine and March of the Machine. `?setcode=woe&setcode=mom` is equivalent. The app loads the sets' card IDs from Scryfall before starting the scanner; if no matching cards are in the catalog, it shows an error rather than scanning all sets. Omit `setcode` or leave it empty to scan all sets. The `details` option only controls which card details are shown in the overlay. Overlay display settings are sent to the Browser Source through the local OBS WebSocket; they are not encoded in its URL.
+
+## Deploying to Vercel
+
+The app is a static Vite build. Vercel serves the app and overlay pages; the live scanner data travels only over the local OBS WebSocket.
+
+1. Import the repository into Vercel. [`vercel.json`](vercel.json) sets the build command, output directory, `/overlay` route, and the cross-origin isolation headers that multithreaded ONNX Runtime needs.
+2. Deploy the site; no Redis database or Vercel Function is needed for the live overlay connection.
+
+The build runs `npm run setup` (see below). Vercel's build image already includes `tar` with zstd support.
 
 ## Development
 
+The scanner UI uses Kobalte's Solid 2-compatible alpha for accessible controls; other form controls use native HTML elements.
+
 ```bash
+git clone https://github.com/jpinz/obs-mtg-scanner.git
+cd obs-mtg-scanner
+npm install
+npm run dev        # http://localhost:5173
 npm test           # vitest
 npm run typecheck
 ```
+
+`npm run dev` serves the app and its `/overlay` page through Vite. OBS must be running locally for the overlay to receive card updates. `npm run build && npm run preview` does the same for a production build.
+
+`npm run dev` and `npm run build` first run `npm run setup`. That copies the forked scanner sources from `collectorvision/` and downloads CollectorVision's prebuilt model/catalog bundle (~43 MB, cached in `.cache/`) into `public/collectorvision/`. Run `node scripts/fetch-collectorvision.mjs --force` to refresh it. Extraction needs a `tar` with zstd support (built into Windows 10+ and macOS).
 
 ## License
 

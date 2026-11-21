@@ -23,6 +23,11 @@ release named in `assets.bundle.json`.
 
 ## Local changes
 
-- `lib/collectorvision-scanner-applet.mjs`: forwards `catalogMode` (default
-  `"v2"`, matching the hosted demo; upstream's applet always used the bundled v1
-  catalog) and `rotationInvariant` to the worker's `init` message.
+- `lib/collectorvision-scanner-applet.mjs` and `scanner.worker.mjs`: always use
+  the live v2 catalog instead of the bundled v1 snapshot. The applet also
+  forwards `rotationInvariant` to the worker's `init` message.
+- `lib/collectorvision-scanner-applet.mjs` and `scanner.worker.mjs`: forward an
+  optional `allowedCardIds` list and restrict the loaded catalog before matching.
+  `lib/collectorvision-catalog-filter.mjs` keeps selected embeddings, print IDs,
+  names, and secondary IDs aligned for the live catalog. The app gets the
+  allowed print IDs from Scryfall using the `setcode` and `query` URL options.
