@@ -18,6 +18,7 @@
 //   { type: 'error',    message }
 
 import * as ort from "./vendor/onnxruntime-web/ort.webgpu.min.mjs?v=__BUILD_ID__";
+import { filterCatalog } from "./lib/collectorvision-catalog-filter.mjs?v=__BUILD_ID__";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -256,49 +257,6 @@ function chooseBetterMatch(current, candidate) {
   return candidate.score > current.score ? candidate : current;
 }
 
-function snakeToCamel(value) {
-  return String(value).replace(/_([a-zA-Z0-9])/g, (_, char) => char.toUpperCase());
-}
-
-function secondaryCatalogKeyToFieldName(catalogKey) {
-  const key = String(catalogKey ?? "").trim();
-  if (!key) {
-    return null;
-  }
-  const base = key.replace(/_ids$/i, "_id");
-  const fieldName = snakeToCamel(base);
-  return fieldName || null;
-}
-
-function resolveSecondaryIdSource(catalog = {}) {
-  const explicitPath = typeof catalog.secondary_ids === "string"
-    ? catalog.secondary_ids
-    : null;
-  const explicitField = typeof catalog.secondary_id_field === "string"
-    ? catalog.secondary_id_field
-    : null;
-
-  if (explicitPath) {
-    return {
-      assetPath: explicitPath,
-      fieldName: explicitField || "secondaryId",
-    };
-  }
-
-  const candidates = Object.entries(catalog)
-    .filter(([key, value]) => key !== "card_ids" && /_ids$/i.test(key) && typeof value === "string")
-    .sort(([a], [b]) => a.localeCompare(b));
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  const [catalogKey, assetPath] = candidates[0];
-  return {
-    assetPath,
-    fieldName: explicitField || secondaryCatalogKeyToFieldName(catalogKey) || "secondaryId",
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Float16 / catalog decode
 // ---------------------------------------------------------------------------
@@ -331,10 +289,6 @@ function createFloat16LookupTable() {
 }
 
 const FLOAT16_LOOKUP = createFloat16LookupTable();
-
-function wrapFloat16Buffer(buffer) {
-  return new Uint16Array(buffer);
-}
 
 // ---------------------------------------------------------------------------
 // IndexedDB asset cache (same DB as the main thread — shared origin storage)
@@ -423,20 +377,6 @@ async function fetchWithProgress(url, responseType, expectedTotal, onProgress) {
     return JSON.parse(await blob.text());
   }
   return await blob.arrayBuffer();
-}
-
-async function fetchJsonCached(url, version, expectedTotal, onProgress) {
-  const key = `${version}:${url}:json`;
-  const cached = await readCachedAsset(key);
-  if (cached) {
-    onProgress?.(1, 1, 1, true);
-    return cached;
-  }
-  const json = await fetchWithProgress(url, "json", expectedTotal, (ratio, loaded, total) => {
-    onProgress?.(ratio, loaded, total, false);
-  });
-  await writeCachedAsset(key, json);
-  return json;
 }
 
 async function fetchBufferCached(url, version, expectedTotal, onProgress) {
@@ -551,7 +491,6 @@ class WorkerRuntime {
     catalogLimit = null,
     rotationInvariant = true,
     minCornerConfidence = DEFAULT_MIN_CORNER_CONFIDENCE,
-    catalogMode = "v1",
   ) {
     this.manifest = manifest;
     this.assetBasePath = assetBasePath ?? "./assets";
@@ -559,14 +498,14 @@ class WorkerRuntime {
     this.useWebGpu = useWebGpu;
     this.rotationInvariant = rotationInvariant;
     this.minCornerConfidence = clamp01(minCornerConfidence);
-    this.catalogMode = catalogMode;
-    this.catalogVersion = manifest.version;
-    this.catalogKey = "bundled";
+    this.catalogMode = "v2";
+    this.catalogVersion = null;
+    this.catalogKey = null;
     this.catalogLimit = Number.isFinite(catalogLimit) && catalogLimit > 0
       ? Math.floor(catalogLimit)
       : null;
-    this.catalogRows = manifest.catalog?.rows ?? 0;
-    this.catalogTotalRows = manifest.catalog?.rows ?? 0;
+    this.catalogRows = 0;
+    this.catalogTotalRows = 0;
     this.detector = null;
     this.embedder = null;
     this.inputNames = {};
@@ -647,84 +586,7 @@ class WorkerRuntime {
     this.inputNames.detector = this.detector.inputNames[0];
     this.inputNames.embedder = this.embedder.inputNames[0];
 
-    if (this.catalogMode === "v2") {
-      await this.loadCatalogV2(onStage);
-      return;
-    }
-
-    const catalogAssetSizes = this.manifest.catalog.asset_sizes ?? {};
-    const secondarySource = resolveSecondaryIdSource(this.manifest.catalog);
-    const catalogParts = [
-      { key: "embeddings", size: catalogAssetSizes.embeddings },
-      { key: "card_ids", size: catalogAssetSizes.card_ids },
-      ...(secondarySource ? [{ key: "oracle_ids", size: catalogAssetSizes.oracle_ids }] : []),
-    ];
-    const catalogTotal = catalogParts.reduce(
-      (total, part) => total + (Number.isSafeInteger(part.size) && part.size > 0 ? part.size : 0),
-      0,
-    );
-    const reportCatalogProgress = (partIndex, loaded, total, cached) => {
-      const completed = catalogParts.slice(0, partIndex).reduce(
-        (sum, part) => sum + (Number.isSafeInteger(part.size) && part.size > 0 ? part.size : 0),
-        0,
-      );
-      const expected = catalogParts[partIndex].size;
-      if (catalogTotal > 0 && Number.isSafeInteger(expected) && expected > 0) {
-        const current = cached ? expected : Math.min(loaded, expected);
-        const aggregate = completed + current;
-        onStage?.("catalog", aggregate / catalogTotal, aggregate, catalogTotal, false);
-        return;
-      }
-      onStage?.("catalog", total > 0 ? loaded / total : 0, loaded, total, cached);
-    };
-    const embeddingBuffer = await fetchBufferCached(
-      `${this.assetBasePath}/${this.manifest.catalog.embeddings}`,
-      version,
-      catalogAssetSizes.embeddings,
-      (ratio, loaded, total, cached) => reportCatalogProgress(0, loaded, total, cached),
-    );
-    const ids = await fetchJsonCached(
-      `${this.assetBasePath}/${this.manifest.catalog.card_ids}`,
-      version,
-      catalogAssetSizes.card_ids,
-      (ratio, loaded, total, cached) => reportCatalogProgress(1, loaded, total, cached),
-    );
-    const secondaryIds = secondarySource
-      ? await fetchJsonCached(
-        `${this.assetBasePath}/${secondarySource.assetPath}`,
-        version,
-        catalogAssetSizes.oracle_ids,
-        (ratio, loaded, total, cached) => reportCatalogProgress(2, loaded, total, cached),
-      )
-      : null;
-    // Keep the catalog in its packed float16 form.  Expanding the full MTG
-    // matrix to Float32Array roughly doubles steady-state catalog memory and
-    // can push iOS WebKit into tab reloads.  Search converts individual values
-    // through a 256 KB lookup table instead.
-    const dims = this.manifest.catalog.dims;
-    const declaredRows = this.manifest.catalog.rows;
-    const requestedRows = this.catalogLimit
-      ? Math.min(this.catalogLimit, declaredRows, ids.length)
-      : Math.min(declaredRows, ids.length);
-    const embeddingBytes = requestedRows * dims * 2;
-    // Diagnostic-only catalog limiting still fetches the monolithic asset, so
-    // it does not remove the transient load peak.  It does keep only the small
-    // prefix after load, which is enough to test steady-state catalog pressure.
-    const retainedEmbeddingBuffer = requestedRows < declaredRows
-      ? embeddingBuffer.slice(0, embeddingBytes)
-      : embeddingBuffer;
-    this.embeddings = wrapFloat16Buffer(retainedEmbeddingBuffer);
-    this.cardIds = requestedRows < ids.length ? ids.slice(0, requestedRows) : ids;
-    this.secondaryIdField = secondarySource?.fieldName ?? null;
-    this.secondaryIds = Array.isArray(secondaryIds)
-      ? (requestedRows < secondaryIds.length ? secondaryIds.slice(0, requestedRows) : secondaryIds)
-      : null;
-    this.catalogRows = Math.min(
-      requestedRows,
-      this.cardIds.length,
-      Math.floor(this.embeddings.length / dims),
-    );
-    this.catalogTotalRows = declaredRows;
+    await this.loadCatalogV2(onStage);
   }
 
   async loadCatalogV2(onStage) {
@@ -1145,11 +1007,26 @@ self.onmessage = async ({ data }) => {
         catalogLimit,
         data.rotationInvariant !== false,
         data.minCornerConfidence,
-        data.catalogMode,
       );
       await runtime.load((stage, ratio, loaded, total, cached) => {
         self.postMessage({ type: "progress", stage, ratio, loaded, total, cached });
       });
+
+      if (data.allowedCardIds != null) {
+        const filtered = filterCatalog({
+          embeddings: runtime.embeddings,
+          cardIds: runtime.cardIds,
+          cardNames: runtime.cardNames,
+          secondaryIds: runtime.secondaryIds,
+          rows: runtime.catalogRows,
+          dims: runtime.catalogDims ?? runtime.manifest.catalog.dims,
+        }, data.allowedCardIds);
+        runtime.embeddings = filtered.embeddings;
+        runtime.cardIds = filtered.cardIds;
+        runtime.cardNames = filtered.cardNames;
+        runtime.secondaryIds = filtered.secondaryIds;
+        runtime.catalogRows = filtered.rows;
+      }
 
       self.postMessage({
         type: "ready",
