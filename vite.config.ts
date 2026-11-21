@@ -1,4 +1,6 @@
+import solid from "@solidjs/vite-plugin";
 import { defineConfig } from "vite";
+import { overlayRelayPlugin } from "./server/overlayRelay";
 
 // Cross-origin isolation enables SharedArrayBuffer so ONNX Runtime can use
 // multithreaded WASM. `credentialless` still allows Scryfall card images.
@@ -9,13 +11,14 @@ const isolationHeaders = {
 
 export default defineConfig({
   base: "./",
+  plugins: [solid(), overlayRelayPlugin()],
   server: { headers: isolationHeaders },
   preview: { headers: isolationHeaders },
   build: {
     rollupOptions: {
       input: {
-        overlay: `${import.meta.dirname}/index.html`,
-        settings: `${import.meta.dirname}/settings.html`,
+        app: `${import.meta.dirname}/index.html`,
+        overlay: `${import.meta.dirname}/overlay.html`,
       },
     },
   },
