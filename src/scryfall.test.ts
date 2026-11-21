@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { formatPrice, parseCard, ScryfallClient } from "./scryfall";
+import { formatFinishPrices, formatPrice, parseCard, ScryfallClient } from "./scryfall";
 import type { CardInfo } from "./scryfall";
 
 function cardJson(overrides: Record<string, unknown> = {}) {
@@ -55,6 +55,25 @@ describe("formatPrice", () => {
   it("formats the requested price and falls back to foil", () => {
     expect(formatPrice(cardWithPrices({ usd: "1.2" }), "usd")).toEqual({ text: "$1.20", currency: "usd" });
     expect(formatPrice(cardWithPrices({ usd: null, usd_foil: "2.5" }), "usd")).toEqual({ text: "$2.50", currency: "usd_foil" });
+  });
+
+  describe("formatFinishPrices", () => {
+    it("shows each available USD finish without fallback or duplication", () => {
+      const card = cardWithPrices({ usd: "1.2", usd_foil: "2.5", usd_etched: "3.75", eur: "9" });
+      expect(formatFinishPrices(card, "usd_foil")).toEqual([
+        { text: "$1.20", currency: "usd" },
+        { text: "$2.50", currency: "usd_foil" },
+        { text: "$3.75", currency: "usd_etched" },
+      ]);
+    });
+
+    it("omits missing and invalid prices and keeps currencies separate", () => {
+      const card = cardWithPrices({ usd: null, usd_foil: "bad", usd_etched: "0", eur: "", eur_foil: "1.25", tix: "0.05" });
+      expect(formatFinishPrices(card, "usd")).toEqual([{ text: "$0.00", currency: "usd_etched" }]);
+      expect(formatFinishPrices(card, "eur_foil")).toEqual([{ text: "€1.25", currency: "eur_foil" }]);
+      expect(formatFinishPrices(card, "tix")).toEqual([{ text: "0.05 TIX", currency: "tix" }]);
+      expect(formatFinishPrices(cardWithPrices({}), "usd")).toEqual([]);
+    });
   });
 
   it("formats tix and returns null when no usable price exists", () => {

@@ -9,7 +9,7 @@ export const SAMPLE_CARD: CardInfo = Object.freeze({
   collectorNumber: "001",
   rarity: "rare",
   imageUrl: null,
-  prices: Object.freeze({ usd: "1.23", usd_foil: "2.46", eur: "1.15", eur_foil: "2.30", tix: "0.05" }),
+  prices: Object.freeze({ usd: "1.23", usd_foil: "2.46", usd_etched: "3.69", eur: "1.15", eur_foil: "2.30", tix: "0.05" }),
   scryfallUri: "",
 });
 

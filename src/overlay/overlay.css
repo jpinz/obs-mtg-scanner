@@ -350,6 +350,11 @@ body,
 .card-rarity--special,
 .card-rarity--bonus { color: #a855f7; }
 
+.card-prices {
+  display: grid;
+  gap: 0.2em;
+}
+
 .card-price {
   display: flex;
   align-items: baseline;

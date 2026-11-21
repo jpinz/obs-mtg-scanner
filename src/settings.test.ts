@@ -15,12 +15,13 @@ describe("parseSettings", () => {
 
   it("parses every supported parameter", () => {
     const s = parseSettings(
-      "?currency=eur_foil&image=0&name=0&info=off&details=price,set,confidence&ipos=0.1,0.2,0.3,0.4&npos=0.3,0.4,0.2,0.05&dpos=0.5,0.6,0.25,0.3"
+      "?currency=eur_foil&finishes=1&image=0&name=0&info=off&details=price,set,confidence&ipos=0.1,0.2,0.3,0.4&npos=0.3,0.4,0.2,0.05&dpos=0.5,0.6,0.25,0.3"
         + "&ts=20&nts=32&dts=14&dsz=price:28,SET:12,bogus:9,rarity:abc&fts=18"
         + "&follow=1&sides=right,left&duration=0&threshold=0.7&setcode=woe&query=t%3Acreature&camera=abc&res=1920x1080&mirror=1&theme=light&accent=22c55e&debug=on",
     );
     expect(s).toEqual<OverlaySettings>({
       currency: "eur_foil",
+      allFinishes: true,
       showImage: false,
       showName: false,
       showDetails: false,
@@ -129,6 +130,7 @@ describe("serializeSettings", () => {
     const changed: OverlaySettings = {
       ...DEFAULT_SETTINGS,
       currency: "tix",
+      allFinishes: true,
       setCodes: ["woe", "mom"],
       query: 't:creature OR name:"Fire & Ice"',
       mirror: true,
@@ -145,6 +147,7 @@ describe("serializeSettings", () => {
     };
     const query = serializeSettings(changed);
     expect(query.get("setcode")).toBe("woe,mom");
+    expect(query.get("finishes")).toBe("1");
     expect(query.get("details")).toBe("none");
     expect(query.get("sides")).toBe("none");
     expect(query.get("dpos")).toBe("0.25,0.75,0.3,0.2");
@@ -166,10 +169,11 @@ describe("serializeSettings", () => {
       camera: "abc",
       setCodes: ["woe"],
       follow: true,
+      allFinishes: true,
       layout: setLayoutBox(DEFAULT_SETTINGS.layout, "name", { x: 0.1, y: 0.1 }),
       followTextSize: 20,
     });
-    expect(query.toString()).toBe("npos=0.1%2C0.1%2C0.18%2C0.05&fts=20&follow=1");
+    expect(query.toString()).toBe("finishes=1&npos=0.1%2C0.1%2C0.18%2C0.05&fts=20&follow=1");
   });
 });
 

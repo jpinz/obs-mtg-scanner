@@ -322,6 +322,7 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
                 card={current()}
                 fields={settings().details}
                 currency={settings().currency}
+                allFinishes={settings().allFinishes}
                 confidence={confidence()}
                 sizes={settings().detailTextSizes}
               />

@@ -64,6 +64,7 @@ export type IgnoreZone = readonly (readonly [number, number])[];
 
 export interface OverlaySettings {
   currency: Currency;
+  allFinishes: boolean;
   showImage: boolean;
   showName: boolean;
   showDetails: boolean;
@@ -100,6 +101,7 @@ export interface OverlaySettings {
 
 export const DEFAULT_SETTINGS: Readonly<OverlaySettings> = Object.freeze({
   currency: "usd",
+  allFinishes: false,
   showImage: true,
   showName: true,
   showDetails: true,
@@ -140,6 +142,7 @@ function imageSizeFor(widthPx: number): { width: number; height: number } {
 
 const PARAM = {
   currency: "currency",
+  allFinishes: "finishes",
   showImage: "image",
   showName: "name",
   showDetails: "info",
@@ -327,6 +330,7 @@ export function parseSettings(search: string | URLSearchParams): OverlaySettings
   const textSizeFallback = legacyScale === null ? d.textSize : d.textSize * parseNumber(legacyScale, 1, 0.25, 4);
   return {
     currency: parseEnum(p.get(PARAM.currency), CURRENCIES, d.currency),
+    allFinishes: parseBool(p.get(PARAM.allFinishes), d.allFinishes),
     showImage: parseBool(p.get(PARAM.showImage), d.showImage),
     showName: parseBool(p.get(PARAM.showName), d.showName),
     showDetails: parseBool(p.get(PARAM.showDetails), d.showDetails),
@@ -371,6 +375,7 @@ export function serializeSettings(settings: OverlaySettings): URLSearchParams {
   const res = (r: Resolution) => `${r.width}x${r.height}`;
 
   set("currency", settings.currency, d.currency);
+  set("allFinishes", bool(settings.allFinishes), bool(d.allFinishes));
   set("showImage", bool(settings.showImage), bool(d.showImage));
   set("showName", bool(settings.showName), bool(d.showName));
   set("showDetails", bool(settings.showDetails), bool(d.showDetails));
@@ -404,6 +409,7 @@ export function serializeSettings(settings: OverlaySettings): URLSearchParams {
 /** Settings the overlay page itself uses; the rest only affect the scanner app. */
 const OVERLAY_KEYS = [
   "currency",
+  "allFinishes",
   "showImage",
   "showName",
   "showDetails",

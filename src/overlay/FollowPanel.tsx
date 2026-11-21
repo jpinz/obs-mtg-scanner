@@ -65,6 +65,7 @@ export function FollowPanel(props: {
                   card={card()}
                   fields={props.settings.details}
                   currency={props.settings.currency}
+                  allFinishes={props.settings.allFinishes}
                   confidence={props.confidence}
                 />
               </Show>
