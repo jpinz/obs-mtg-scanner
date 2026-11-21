@@ -100,6 +100,62 @@ describe("ScryfallClient", () => {
     await client.getCard("second");
     expect(sleep).toHaveBeenCalledWith(100);
   });
+
+  it("loads all print IDs from multiple sets across pages and respects the search rate limit", async () => {
+    let clock = 0;
+    const sleep = vi.fn(async (ms: number) => { clock += ms; });
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(response({ data: [{ id: "woe-card" }], has_more: true }))
+      .mockResolvedValueOnce(response({ data: [{ id: "mom-card" }, { id: "woe-card" }], has_more: false }));
+    const client = new ScryfallClient({ fetch: fetcher, minIntervalMs: 0, now: () => clock, sleep });
+
+    await expect(client.searchCardIds("", ["woe", "mom"])).resolves.toEqual(["woe-card", "mom-card"]);
+    const firstUrl = new URL(String(fetcher.mock.calls[0]![0]));
+    expect(firstUrl.pathname).toBe("/cards/search");
+    expect(firstUrl.searchParams.get("q")).toBe("(set:woe OR set:mom)");
+    expect(firstUrl.searchParams.get("unique")).toBe("prints");
+    expect(firstUrl.searchParams.get("include_extras")).toBe("true");
+    expect(firstUrl.searchParams.get("include_variations")).toBe("true");
+    expect(new URL(String(fetcher.mock.calls[1]![0])).searchParams.get("page")).toBe("2");
+    expect(sleep).toHaveBeenCalledWith(500);
+  });
+
+  it("uses a Scryfall query alone or intersects it with the selected sets", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response({ data: [{ id: "card-id" }], has_more: false }));
+    const client = new ScryfallClient({ fetch: fetcher, minIntervalMs: 0, sleep: async () => {} });
+    const query = 't:creature OR name:"Fire & Ice"';
+
+    await client.searchCardIds(query);
+    expect(new URL(String(fetcher.mock.calls[0]![0])).searchParams.get("q"))
+      .toBe('(t:creature OR name:"Fire & Ice")');
+    await client.searchCardIds(query, ["woe", "mom"]);
+    expect(new URL(String(fetcher.mock.calls[1]![0])).searchParams.get("q"))
+      .toBe('(set:woe OR set:mom) AND (t:creature OR name:"Fire & Ice")');
+  });
+
+  it("rejects empty filters and invalid set codes without making a request", async () => {
+    const fetcher = vi.fn();
+    const client = new ScryfallClient({ fetch: fetcher });
+    await expect(client.searchCardIds(" ")).rejects.toThrow("set code or Scryfall query");
+    await expect(client.searchCardIds("", ["woe OR set:mom"])).rejects.toThrow("Set codes");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("surfaces Scryfall search failures", async () => {
+    const fetcher = vi.fn().mockResolvedValue(response({ details: "No cards found" }, false, 404));
+    const client = new ScryfallClient({ fetch: fetcher, minIntervalMs: 0 });
+    await expect(client.searchCardIds("", ["unknown"])).rejects.toThrow("status 404: No cards found");
+  });
+
+  it.each([
+    { data: [], has_more: false },
+    { data: [{ id: "" }], has_more: false },
+    { data: [{ id: "card-id" }] },
+  ])("rejects an invalid card search response: %j", async (json) => {
+    const fetcher = vi.fn().mockResolvedValue(response(json));
+    const client = new ScryfallClient({ fetch: fetcher, minIntervalMs: 0 });
+    await expect(client.searchCardIds("", ["woe"])).rejects.toThrow("Invalid Scryfall card search");
+  });
 });
 
 

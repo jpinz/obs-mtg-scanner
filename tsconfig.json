@@ -11,7 +11,9 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "preserve",
+    "jsxImportSource": "@solidjs/web"
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "server", "api", "vite.config.ts"]
 }

@@ -132,9 +132,50 @@ export class ScryfallClient {
     return request;
   }
 
+  async searchCardIds(query: string, setCodes: readonly string[] = [], signal?: AbortSignal): Promise<string[]> {
+    if (setCodes.some((code) => !/^[a-z0-9]+$/i.test(code))) {
+      throw new Error("Set codes must contain only letters and numbers");
+    }
+    const filters: string[] = [];
+    if (setCodes.length > 0) {
+      filters.push(`(${setCodes.map((code) => `set:${code}`).join(" OR ")})`);
+    }
+    if (query.trim()) filters.push(`(${query.trim()})`);
+    if (filters.length === 0) {
+      throw new Error("Provide a set code or Scryfall query");
+    }
+
+    const params = new URLSearchParams({
+      q: filters.join(" AND "),
+      unique: "prints",
+      include_extras: "true",
+      include_variations: "true",
+    });
+    const ids = new Set<string>();
+    for (let pageNumber = 1; ; pageNumber += 1) {
+      params.set("page", String(pageNumber));
+      const page = asObject(await this.fetchJson(`${this.baseUrl}/cards/search?${params}`, signal, 500));
+      if (!page || !Array.isArray(page.data) || page.data.length === 0 || typeof page.has_more !== "boolean") {
+        throw new Error("Invalid Scryfall card search: missing cards or pagination");
+      }
+      for (const json of page.data) {
+        const id = asObject(json)?.id;
+        if (typeof id !== "string" || id.length === 0) {
+          throw new Error("Invalid Scryfall card search: missing card id");
+        }
+        ids.add(id);
+      }
+      if (!page.has_more) return [...ids];
+    }
+  }
+
   private async fetchCard(id: string, signal?: AbortSignal): Promise<CardInfo> {
-    await this.waitForRequestSlot();
-    const response = await this.fetcher(`${this.baseUrl}/cards/${encodeURIComponent(id)}`, {
+    return parseCard(await this.fetchJson(`${this.baseUrl}/cards/${encodeURIComponent(id)}`, signal));
+  }
+
+  private async fetchJson(url: string, signal?: AbortSignal, intervalMs = this.minIntervalMs): Promise<unknown> {
+    await this.waitForRequestSlot(intervalMs);
+    const response = await this.fetcher(url, {
       headers: { Accept: "application/json" },
       ...(signal ? { signal } : {}),
     });
@@ -151,14 +192,14 @@ export class ScryfallClient {
       throw new Error(`Scryfall request failed with status ${response.status}${details}`);
     }
 
-    return parseCard(await response.json());
+    return response.json();
   }
 
-  private waitForRequestSlot(): Promise<void> {
+  private waitForRequestSlot(intervalMs: number): Promise<void> {
     const scheduled = this.requestQueue.then(async () => {
       const waitMs = Math.max(0, this.nextAllowedAt - this.now());
       if (waitMs > 0) await this.sleep(waitMs);
-      this.nextAllowedAt = this.now() + this.minIntervalMs;
+      this.nextAllowedAt = this.now() + Math.max(this.minIntervalMs, intervalMs);
     });
     this.requestQueue = scheduled.then(
       () => undefined,
