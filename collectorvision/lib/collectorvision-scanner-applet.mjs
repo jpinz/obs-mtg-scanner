@@ -12,7 +12,7 @@ const DEFAULT_CONFIG = {
   autoStart: true,
   scanIntervalMs: 900,
   minCornerConfidence: 0.02,
-  catalogMode: "v2",
+  allowedCardIds: null,
   rotationInvariant: true,
   matchThreshold: 0.5,
   consecutiveMatches: 2,
@@ -227,7 +227,8 @@ export class CollectorVisionScannerApplet extends EventTarget {
         assetBasePath: this.config.assetBasePath,
         enableWebGpu: this.config.enableWebGpu === true,
         minCornerConfidence: clamp01(this.config.minCornerConfidence),
-        catalogMode: this.config.catalogMode === "v1" ? "v1" : "v2",
+        catalogMode: "v2",
+        allowedCardIds: this.config.allowedCardIds,
         rotationInvariant: this.config.rotationInvariant !== false,
       });
       if (this.config.autoStart) {

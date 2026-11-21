@@ -21,6 +21,7 @@ const SOURCE_FILES = [
   "scanner.worker.mjs",
   "lib/collectorvision-scanner-applet.mjs",
   "lib/collectorvision-catalog-v2.mjs",
+  "lib/collectorvision-catalog-filter.mjs",
   "LICENSE",
 ];
 
