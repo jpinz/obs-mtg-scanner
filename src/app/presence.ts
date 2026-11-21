@@ -7,7 +7,7 @@ export class PresenceTracker {
   private current: string | null = null;
   private lastSeen = 0;
 
-  constructor(private durationMs: number) {}
+  constructor(public durationMs: number) {}
 
   get cardId(): string | null {
     return this.current;
@@ -24,6 +24,10 @@ export class PresenceTracker {
     if (cardPresent && this.current) {
       this.lastSeen = now;
     }
+  }
+
+  clear(): void {
+    this.current = null;
   }
 
   /** Returns true exactly once when the panel should be hidden. */
