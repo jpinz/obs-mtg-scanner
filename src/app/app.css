@@ -248,6 +248,41 @@ select {
   pointer-events: auto;
 }
 
+.ignore-zones {
+  position: absolute;
+  z-index: 3;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.ignore-zones__saved {
+  fill: rgba(245, 158, 11, 0.3);
+  stroke: #f59e0b;
+  stroke-width: 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.ignore-zones__draft {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.ignore-zones__point { fill: #fff; }
+.ignore-zones__cursor { fill: none; stroke: #fff; stroke-width: 3; visibility: hidden; }
+.ignore-zones:focus-visible .ignore-zones__cursor { visibility: visible; }
+
+.ignore-controls {
+  margin-top: 0.6rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.ignore-controls .preview__actions { justify-content: flex-start; }
+.ignore-controls > button { margin: 0.5rem 0.5rem 0 0; }
+.ignore-controls [role="alert"] { color: #fca5a5; }
+
 .preview__hint {
   margin: 0.6rem 0 0;
   color: var(--accent);

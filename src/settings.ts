@@ -59,6 +59,9 @@ export interface Resolution {
   height: number;
 }
 
+/** Polygon vertices in unmirrored camera-frame coordinates, normalized to 0–1. */
+export type IgnoreZone = readonly (readonly [number, number])[];
+
 export interface OverlaySettings {
   currency: Currency;
   showImage: boolean;
@@ -89,6 +92,7 @@ export interface OverlaySettings {
   camera: string;
   resolution: Resolution;
   mirror: boolean;
+  ignoreZones: readonly IgnoreZone[];
   theme: Theme;
   accent: string;
   debug: boolean;
@@ -119,6 +123,7 @@ export const DEFAULT_SETTINGS: Readonly<OverlaySettings> = Object.freeze({
   camera: "",
   resolution: Object.freeze({ width: 1280, height: 720 }),
   mirror: false,
+  ignoreZones: Object.freeze([]),
   theme: "dark",
   accent: "#f59e0b",
   debug: false,
@@ -153,6 +158,7 @@ const PARAM = {
   camera: "camera",
   resolution: "res",
   mirror: "mirror",
+  ignoreZones: "ignore",
   theme: "theme",
   accent: "accent",
   debug: "debug",
@@ -290,6 +296,26 @@ function parseColor(value: string | null, fallback: string): string {
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex) ? hex.toLowerCase() : fallback;
 }
 
+function parseIgnoreZones(value: string | null): IgnoreZone[] {
+  if (!value) return [];
+  try {
+    const zones: unknown = JSON.parse(value);
+    if (!Array.isArray(zones)) return [];
+    return zones.filter((zone): zone is [number, number][] => {
+      if (!Array.isArray(zone) || zone.length < 3) return false;
+      if (!zone.every((point) => Array.isArray(point) && point.length === 2
+        && point.every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1))) return false;
+      const area = zone.reduce((sum, point, i) => {
+        const next = zone[(i + 1) % zone.length];
+        return sum + point[0] * next[1] - next[0] * point[1];
+      }, 0);
+      return Math.abs(area) > 0.000001;
+    });
+  } catch {
+    return [];
+  }
+}
+
 export function parseSettings(search: string | URLSearchParams): OverlaySettings {
   const p = typeof search === "string" ? new URLSearchParams(search) : search;
   const d = DEFAULT_SETTINGS;
@@ -327,6 +353,7 @@ export function parseSettings(search: string | URLSearchParams): OverlaySettings
     camera: p.get(PARAM.camera)?.trim() ?? d.camera,
     resolution: parseResolution(p.get(PARAM.resolution), d.resolution),
     mirror: parseBool(p.get(PARAM.mirror), d.mirror),
+    ignoreZones: parseIgnoreZones(p.get(PARAM.ignoreZones)),
     theme: parseEnum(p.get(PARAM.theme), THEMES, d.theme),
     accent: parseColor(p.get(PARAM.accent), d.accent),
     debug: parseBool(p.get(PARAM.debug), d.debug),
@@ -367,6 +394,7 @@ export function serializeSettings(settings: OverlaySettings): URLSearchParams {
   set("camera", settings.camera, d.camera);
   set("resolution", res(settings.resolution), res(d.resolution));
   set("mirror", bool(settings.mirror), bool(d.mirror));
+  set("ignoreZones", JSON.stringify(settings.ignoreZones), "[]");
   set("theme", settings.theme, d.theme);
   set("accent", settings.accent, d.accent);
   set("debug", bool(settings.debug), bool(d.debug));

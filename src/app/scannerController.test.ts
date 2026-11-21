@@ -30,6 +30,7 @@ describe("ScannerController", () => {
         camera: {},
         catalog: { setCodes: ["woe"], query: "t:creature" },
         threshold: 0.6,
+        ignoreZones: [],
       },
       events,
       factory,
@@ -64,6 +65,7 @@ describe("ScannerController", () => {
         camera: {},
         catalog: { setCodes: ["woe"], query: "" },
         threshold: 0.5,
+        ignoreZones: [],
       },
       events,
       factory,
@@ -78,6 +80,28 @@ describe("ScannerController", () => {
     expect(applets[0].dispose).toHaveBeenCalledOnce();
     expect(applets[1].start).toHaveBeenCalledOnce();
     expect(vi.mocked(factory).mock.calls[1][1].allowedCardIds).toEqual(["mom"]);
+    controller.dispose();
+  });
+
+  it("applies zone changes made while an applet is loading and after it starts", async () => {
+    const applet = new FakeApplet();
+    let finish!: (applet: Applet) => void;
+    const loading = new Promise<Applet>((resolve) => { finish = resolve; });
+    const factory: AppletFactory = vi.fn(() => loading);
+    const controller = new ScannerController(
+      { replaceChildren: vi.fn() } as unknown as HTMLElement,
+      { camera: {}, catalog: { setCodes: [], query: "" }, threshold: 0.5, ignoreZones: [] },
+      events, factory, vi.fn(),
+    );
+    controller.start();
+    await Promise.resolve();
+    const zone = [[0, 0], [1, 0], [0, 1]] as const;
+    controller.setIgnoreZones([zone]);
+    finish(applet);
+    await controller.idle;
+    expect(applet.updateConfig).toHaveBeenCalledWith({ ignoreZones: [zone] });
+    controller.setIgnoreZones([]);
+    expect(applet.updateConfig).toHaveBeenLastCalledWith({ ignoreZones: [] });
     controller.dispose();
   });
 });

@@ -14,6 +14,8 @@ Recognition runs entirely in your browser using a fork of [CollectorVision](http
 
 The app also previews the same overlay over its camera feed. If another app (including an OBS *Video Capture Device* source) is already using the webcam, select **OBS Virtual Camera** in the app or release the camera in the other app.
 
+To exclude part of the camera image from recognition, start the camera and select **Ignore zones**. Click at least three points around an area, then select **Save zone**. Add multiple zones or remove them individually; **Undo point** removes the last point of the current draft. Keyboard users can focus the video, move the cursor with the arrow keys (Shift for larger steps), and press Enter to add points. Zones are saved with scanner settings and apply to any selected camera; check them after changing cameras. They follow the video when mirroring or changing resolution and are not shown in OBS. The scanner masks the areas before recognition and rejects detections that overlap them.
+
 When a WebSocket password is set, **Copy URL** includes it in the URL fragment (`#obsPassword=…`) so the Browser Source logs in automatically; the URL shown in the app masks it. Copy the URL again after changing the password. A fragment password takes precedence over a password saved in the Browser Source's browser profile and is not saved automatically. If the URL has no password and OBS requires one, use the Browser Source's **Interact** window to enter it. Fragments are not sent in the HTTP request to Vercel, but the password remains visible in OBS source settings; treat the copied URL as a secret.
 
 The default port is omitted from the URL; changing to a custom port requires copying the updated URL into OBS. The scanner must remain open while streaming.
@@ -42,6 +44,7 @@ The default port is omitted from the URL; changing to a custom port requires cop
 | `camera` | device ID | default camera | Specific camera to use (`MediaDeviceInfo.deviceId`) |
 | `res` | `WIDTHxHEIGHT` | `1280x720` | Requested camera resolution |
 | `mirror` | `1` / `0` | `0` | Mirror the video (recognition always uses the unmirrored frame) |
+| `ignore` | JSON array of polygons | none | Ignore zones as arrays of `[x,y]` vertices in unmirrored frame fractions (`0`–`1`); normally configured in the camera preview. |
 | `theme` | `dark`, `light` | `dark` | Panel theme |
 | `accent` | hex color | `f59e0b` | Panel accent color |
 | `debug` | `1` / `0` | `0` | Show the detection outline, FPS, and scanner status |

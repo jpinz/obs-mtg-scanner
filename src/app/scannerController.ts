@@ -1,4 +1,5 @@
 import type { Applet, CardDetection, ScanResult, ScannerCallbacks, ScannerOptions } from "./scanner";
+import type { IgnoreZone } from "../settings";
 
 export type CameraState = "off" | "starting" | "on";
 
@@ -15,6 +16,7 @@ export interface ControllerOptions {
   camera: MediaTrackConstraints;
   catalog: CatalogSpec;
   threshold: number;
+  ignoreZones: readonly IgnoreZone[];
 }
 
 const catalogKey = (catalog: CatalogSpec) => JSON.stringify([catalog.setCodes, catalog.query]);
@@ -100,6 +102,11 @@ export class ScannerController {
     this.applet?.updateConfig({ matchThreshold: threshold });
   }
 
+  setIgnoreZones(ignoreZones: readonly IgnoreZone[]): void {
+    this.options.ignoreZones = ignoreZones;
+    this.applet?.updateConfig({ ignoreZones });
+  }
+
   dispose(): void {
     this.disposed = true;
     this.wanted = false;
@@ -137,6 +144,7 @@ export class ScannerController {
           return;
         }
         this.applet = applet;
+        applet.updateConfig({ ignoreZones: this.options.ignoreZones });
         this.loadedCatalog = catalogKey(catalog);
       } catch (error) {
         if (this.catalogRequest?.signal.aborted || this.disposed) return;
@@ -184,6 +192,7 @@ export class ScannerController {
       {
         camera: this.options.camera,
         threshold: this.options.threshold,
+        ignoreZones: this.options.ignoreZones,
         allowedCardIds,
       },
       {
