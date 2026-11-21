@@ -383,6 +383,161 @@ select {
   background: var(--surface);
 }
 
+.sidebar {
+  min-width: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabs button {
+  padding: 0.7rem 0.9rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabs button[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--fg);
+}
+
+.tabs span {
+  margin-left: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.history {
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.history__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 0.75rem;
+}
+
+.history__heading h2,
+.history-search h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.history__heading p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.history__empty {
+  margin: 1.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.history__error {
+  color: #ffb4ad;
+  font-size: 0.85rem;
+}
+
+.history-search {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.history-search form {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.history-search__row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.history-search .help,
+.history-search .history__error {
+  margin: 0;
+}
+
+.history-list,
+.history-results {
+  display: grid;
+  gap: 0;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-results {
+  max-height: 20rem;
+  overflow: auto;
+  margin: 0;
+}
+
+.history-list li,
+.history-results li {
+  min-width: 0;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.history-list__card,
+.history-results button {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.history-list__card span,
+.history-results span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.history-list__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.history-results button {
+  width: 100%;
+  padding: 0.4rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-results button:hover {
+  background: #222b3a;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .controls__heading,
 .control-group {
   padding: 1.25rem;

@@ -42,6 +42,7 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
   const [settings, setSettings] = createSignal(props.settings);
   const [card, setCard] = createSignal<CardInfo | null>(null);
   const [confidence, setConfidence] = createSignal<number | null>(null);
+  const [total, setTotal] = createSignal({ text: "$0.00", missing: 0, count: 0 });
   const [cardId, setCardId] = createSignal<string | null>(null);
   const [corners, setCorners] = createSignal<readonly [number, number][] | null>(null);
   const [tracking, setTracking] = createSignal(false);
@@ -189,6 +190,10 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
         applySettings(parseSettings(event.settings));
         return;
       }
+      if (event.type === "total") {
+        setTotal({ text: event.text, missing: event.missing, count: event.count });
+        return;
+      }
       if (event.type === "card") {
         setCard(event.card);
         setConfidence(event.confidence);
@@ -289,6 +294,16 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
           {...pinnedProps}
         >
           <Show when={shown()}>{(current) => <CardImage card={current()} placeholder={editing()} />}</Show>
+        </Pinned>
+      </Show>
+      <Show when={settings().showTotal}>
+        <Pinned item="total" box={box("total")} canvas={canvas()} fontSize={settings().textSize}
+          visible={true} editing={editing()} dragging={dragMode("total")} {...pinnedProps}>
+          <div class="total-value">
+            <span>Total value</span>
+            <strong>{total().text}</strong>
+            <Show when={total().missing > 0}><small>{total().missing} unpriced</small></Show>
+          </div>
         </Pinned>
       </Show>
       <Show when={settings().showName}>

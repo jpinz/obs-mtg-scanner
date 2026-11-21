@@ -150,6 +150,24 @@ export class ScryfallClient {
     return request;
   }
 
+  /** Search individual printings for the history editor. */
+  async searchPrintings(name: string, pageNumber = 1, signal?: AbortSignal): Promise<{ cards: CardInfo[]; hasMore: boolean }> {
+    const term = name.trim();
+    if (!term) throw new Error("Enter a card name");
+    const params = new URLSearchParams({
+      q: `name:"${term.replace(/["\\]/g, "\\$&")}"`,
+      unique: "prints",
+      include_extras: "true",
+      include_variations: "true",
+      page: String(pageNumber),
+    });
+    const page = asObject(await this.fetchJson(`${this.baseUrl}/cards/search?${params}`, signal, 500));
+    if (!page || !Array.isArray(page.data) || typeof page.has_more !== "boolean") {
+      throw new Error("Invalid Scryfall card search response");
+    }
+    return { cards: page.data.map(parseCard), hasMore: page.has_more };
+  }
+
   async searchCardIds(query: string, setCodes: readonly string[] = [], signal?: AbortSignal): Promise<string[]> {
     if (setCodes.some((code) => !/^[a-z0-9]+$/i.test(code))) {
       throw new Error("Set codes must contain only letters and numbers");

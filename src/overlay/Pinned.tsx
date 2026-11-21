@@ -8,6 +8,7 @@ const LABELS: Record<LayoutItem, string> = {
   image: "Picture",
   name: "Name",
   details: "Details",
+  total: "Total value",
 };
 
 export const HANDLE_CURSORS: Record<ResizeHandle, string> = {
