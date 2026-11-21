@@ -752,6 +752,11 @@ export function App(props: { session: OverlaySession }) {
                 options={asOptions(CURRENCIES, (c) => CURRENCY_LABELS[c as (typeof CURRENCIES)[number]])}
                 onChange={(value) => commit("currency", value)}
               />
+              <CheckField
+                label="Show all available finishes"
+                checked={settings.allFinishes}
+                onChange={(on) => commit("finishes", on ? "1" : "0")}
+              />
               <SelectField
                 label="Theme"
                 value={settings.theme}

@@ -23,6 +23,7 @@ The default port is omitted from the URL; changing to a custom port requires cop
 | Param | Values | Default | Description |
 | --- | --- | --- | --- |
 | `currency` | `usd`, `usd_foil`, `usd_etched`, `eur`, `eur_foil`, `tix` | `usd` | Price to show. Falls back to the other finish of the same currency when missing. |
+| `finishes` | `1` / `0` | `0` | Show every available finish price for the identified printing in the selected currency (USD nonfoil, foil, and etched; EUR nonfoil and foil). MTGO has one price. Other printings, such as alternate-art cards with a different collector number, have separate prices and are not included. |
 | `image` | `1` / `0` | `1` | Show the pinned card image |
 | `name` | `1` / `0` | `1` | Show the pinned card name |
 | `info` | `1` / `0` | `1` | Show the pinned card details |

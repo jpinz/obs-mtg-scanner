@@ -78,20 +78,38 @@ export function parseCard(json: unknown): CardInfo {
 
 export function formatPrice(card: CardInfo, currency: Currency): PriceDisplay | null {
   for (const candidate of priceFallbacks[currency]) {
-    const value = card.prices[candidate];
-    if (typeof value !== "string" || value.trim() === "") continue;
-    const amount = Number(value);
-    if (!Number.isFinite(amount)) continue;
-
-    const formatted = amount.toFixed(2);
-    const text = candidate.startsWith("usd")
-      ? `$${formatted}`
-      : candidate.startsWith("eur")
-        ? `€${formatted}`
-        : `${formatted} TIX`;
-    return { text, currency: candidate };
+    const price = formatExactPrice(card, candidate);
+    if (price) return price;
   }
   return null;
+}
+
+function formatExactPrice(card: CardInfo, currency: Currency): PriceDisplay | null {
+  const value = card.prices[currency];
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return null;
+
+  const formatted = amount.toFixed(2);
+  const text = currency.startsWith("usd")
+    ? `$${formatted}`
+    : currency.startsWith("eur")
+      ? `€${formatted}`
+      : `${formatted} TIX`;
+  return { text, currency };
+}
+
+/** Available prices for this printing in the selected currency, without finish fallbacks. */
+export function formatFinishPrices(card: CardInfo, currency: Currency): PriceDisplay[] {
+  const candidates: readonly Currency[] = currency.startsWith("usd")
+    ? ["usd", "usd_foil", "usd_etched"]
+    : currency.startsWith("eur")
+      ? ["eur", "eur_foil"]
+      : ["tix"];
+  return candidates.flatMap((candidate) => {
+    const price = formatExactPrice(card, candidate);
+    return price ? [price] : [];
+  });
 }
 
 export class ScryfallClient {

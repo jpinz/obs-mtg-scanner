@@ -1,5 +1,5 @@
 import { createEffect, createSignal, For, Show, type Accessor } from "solid-js";
-import { formatPrice, type CardInfo } from "../scryfall";
+import { formatFinishPrices, formatPrice, type CardInfo } from "../scryfall";
 import { CURRENCY_LABELS, type Currency, type DetailField } from "../settings";
 
 /** Resolves once the image is decoded (or failed, or 3s passed) so components never pop in half-empty. */
@@ -74,6 +74,7 @@ export function CardDetails(props: {
   card: CardInfo;
   fields: readonly DetailField[];
   currency: Currency;
+  allFinishes: boolean;
   confidence: number | null;
   /** Per line sizes in px, overriding the line's default size relative to its container. */
   sizes?: Readonly<Partial<Record<DetailField, number>>>;
@@ -95,27 +96,37 @@ export function CardDetails(props: {
               Confidence: {props.confidence === null ? "Unavailable" : `${(props.confidence * 100).toFixed(1)}%`}
             </p>
           )
-          : <CardPrice card={props.card} currency={props.currency} size={props.sizes?.price} />
+          : <CardPrice card={props.card} currency={props.currency} allFinishes={props.allFinishes} size={props.sizes?.price} />
         )}
       </For>
     </div>
   );
 }
 
-function CardPrice(props: { card: CardInfo; currency: Currency; size?: number }) {
+function CardPrice(props: { card: CardInfo; currency: Currency; allFinishes: boolean; size?: number }) {
+  const prices = () => props.allFinishes
+    ? formatFinishPrices(props.card, props.currency)
+    : [formatPrice(props.card, props.currency)].filter((price) => price !== null);
+  const label = (currency: Currency) => {
+    if (currency === "usd") return props.allFinishes ? "nonfoil" : "";
+    if (currency === "usd_foil") return "foil";
+    if (currency === "usd_etched") return "etched";
+    return `${CURRENCY_LABELS[currency]}${props.allFinishes && currency === "eur" ? " nonfoil" : ""}`;
+  };
   return (
-    <p class="card-price" style={textSize(props.size)}>
-      <Show
-        when={formatPrice(props.card, props.currency)}
-        fallback={<span class="card-price__missing">No price data</span>}
-      >
-        {(price) => (
-          <>
-            <span class="card-price__value">{price().text}</span>
-            <span class="card-price__label">{CURRENCY_LABELS[price().currency]}</span>
-          </>
-        )}
+    <div class="card-prices" style={textSize(props.size)}>
+      <Show when={prices().length > 0} fallback={<span class="card-price__missing">No price data</span>}>
+        <For each={prices()}>
+          {(price) => (
+            <p class="card-price">
+              <span class="card-price__value">{price.text}</span>
+              <Show when={label(price.currency)}>
+                {(text) => <span class="card-price__label">{text()}</span>}
+              </Show>
+            </p>
+          )}
+        </For>
       </Show>
-    </p>
+    </div>
   );
 }
