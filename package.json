@@ -1,0 +1,23 @@
+{
+  "name": "obs-mtg-scanner",
+  "private": true,
+  "version": "0.1.0",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/fetch-collectorvision.mjs",
+    "predev": "npm run setup",
+    "dev": "vite",
+    "prebuild": "npm run setup",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  }
+}
