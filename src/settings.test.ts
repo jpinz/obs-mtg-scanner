@@ -44,6 +44,7 @@ describe("parseSettings", () => {
       camera: "abc",
       resolution: { width: 1920, height: 1080 },
       mirror: true,
+      ignoreZones: [],
       theme: "light",
       accent: "#22c55e",
       debug: true,
@@ -95,6 +96,17 @@ describe("parseSettings", () => {
     expect(parseSettings("?query=%20name%3A%22Fire%20%26%20Ice%22%20OR%20pow%3E%3D3%20").query)
       .toBe('name:"Fire & Ice" OR pow>=3');
     expect(parseSettings("?query=%20%20").query).toBe("");
+  });
+
+  it("round-trips valid ignore polygons and rejects malformed or degenerate ones", () => {
+    const zones = [[[0.1, 0.2], [0.8, 0.2], [0.5, 0.9]]] as const;
+    const query = serializeSettings({ ...DEFAULT_SETTINGS, ignoreZones: zones });
+    expect(parseSettings(query).ignoreZones).toEqual(zones);
+    expect(serializeOverlaySettings({ ...DEFAULT_SETTINGS, ignoreZones: zones }).has("ignore")).toBe(false);
+    query.set("ignore", JSON.stringify([...zones, [[0, 0], [1, 1], [0.5, 0.5]], [[-1, 0], [1, 0], [0, 1]]]));
+    expect(parseSettings(query).ignoreZones).toEqual(zones);
+    query.set("ignore", "{");
+    expect(parseSettings(query).ignoreZones).toEqual([]);
   });
 
   it("falls back or clamps on invalid values", () => {

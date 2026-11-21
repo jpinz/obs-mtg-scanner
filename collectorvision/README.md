@@ -31,3 +31,5 @@ release named in `assets.bundle.json`.
   `lib/collectorvision-catalog-filter.mjs` keeps selected embeddings, print IDs,
   names, and secondary IDs aligned for the live catalog. The app gets the
   allowed print IDs from Scryfall using the `setcode` and `query` URL options.
+- `lib/collectorvision-scanner-applet.mjs`: masks configured ignore polygons in
+  captured frames and rejects overlapping detections before confirmation.

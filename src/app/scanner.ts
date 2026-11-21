@@ -1,4 +1,4 @@
-import type { OverlaySettings } from "../settings";
+import type { IgnoreZone, OverlaySettings } from "../settings";
 
 /** Subset of CollectorVision's scanner-applet `result` event payload that the overlay relies on. */
 export interface ScanResult {
@@ -27,7 +27,7 @@ export interface Applet extends EventTarget {
   /** Opens the camera from `config.camera` and starts scanning. */
   start(): Promise<void>;
   stop(): void;
-  updateConfig(config: { matchThreshold?: number }): void;
+  updateConfig(config: { matchThreshold?: number; ignoreZones?: readonly IgnoreZone[] }): void;
   dispose(): void;
 }
 
@@ -46,6 +46,7 @@ export interface ScannerCallbacks {
 export interface ScannerOptions {
   camera: MediaTrackConstraints;
   threshold: number;
+  ignoreZones: readonly IgnoreZone[];
   /** Restricts recognition to these Scryfall print IDs; omit to match the whole catalog. */
   allowedCardIds?: readonly string[];
 }
@@ -75,6 +76,7 @@ export async function createScanner(
     target,
     autoStart: false,
     matchThreshold: options.threshold,
+    ignoreZones: options.ignoreZones,
     allowedCardIds: options.allowedCardIds,
     consecutiveMatches: 2,
     cooldownMs: 1500,

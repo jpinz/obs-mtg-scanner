@@ -34,6 +34,7 @@ import {
   type OverlaySettings,
 } from "../settings";
 import { CardFeed } from "./cardFeed";
+import { IgnoreZoneEditor } from "./IgnoreZoneEditor";
 import type { OverlaySession } from "./overlaySession";
 import { cameraConstraints, createScanner } from "./scanner";
 import { ScannerController, type CameraState, type CatalogSpec, type ModelStatus } from "./scannerController";
@@ -184,6 +185,7 @@ export function App(props: { session: OverlaySession }) {
   const [previewScale, setPreviewScale] = createSignal(1);
   const [copied, setCopied] = createSignal(false);
   const [editing, setEditing] = createSignal(false);
+  const [editingZones, setEditingZones] = createSignal(false);
   // Sliders preview locally while dragging and commit on release.
   const [thresholdDraft, setThresholdDraft] = createSignal(() => settings.threshold);
   const [textSizeDraft, setTextSizeDraft] = createSignal(() => settings.textSize);
@@ -334,6 +336,17 @@ export function App(props: { session: OverlaySession }) {
     { defer: true },
   );
   createEffect(() => settings.threshold, (threshold) => scanner?.setThreshold(threshold), { defer: true });
+  createEffect(
+    () => JSON.stringify(settings.ignoreZones),
+    () => {
+      feed?.clear();
+      scanner?.setIgnoreZones(snapshot(settings).ignoreZones);
+    },
+    { defer: true },
+  );
+  createEffect(cameraState, (state) => {
+    if (state !== "on") setEditingZones(false);
+  }, { defer: true });
   createEffect(editing, (on) => sendEditState(on), { defer: true });
   createEffect(
     () => settings.duration,
@@ -477,6 +490,7 @@ export function App(props: { session: OverlaySession }) {
         camera: cameraConstraints(settings),
         catalog: { setCodes: settings.setCodes, query: settings.query },
         threshold: settings.threshold,
+        ignoreZones: snapshot(settings).ignoreZones,
       },
       {
         onCameraState: (state) => {
@@ -568,9 +582,24 @@ export function App(props: { session: OverlaySession }) {
                 type="button"
                 class="button button--secondary"
                 aria-pressed={editing() ? "true" : "false"}
-                onClick={() => setEditing((on) => !on)}
+                onClick={() => {
+                  setEditingZones(false);
+                  setEditing((on) => !on);
+                }}
               >
                 {editing() ? "Done editing" : "Edit layout"}
+              </Button>
+              <Button
+                type="button"
+                class="button button--secondary"
+                disabled={cameraState() !== "on"}
+                aria-pressed={editingZones() ? "true" : "false"}
+                onClick={() => {
+                  setEditing(false);
+                  setEditingZones((on) => !on);
+                }}
+              >
+                {editingZones() ? "Done with zones" : "Ignore zones"}
               </Button>
               <Button
                 type="button"
@@ -602,6 +631,15 @@ export function App(props: { session: OverlaySession }) {
               style={{ transform: `scale(${previewScale()})` }}
             />
           </div>
+          {editingZones() && (
+            <IgnoreZoneEditor
+              frame={frame}
+              mirror={settings.mirror}
+              zones={settings.ignoreZones}
+              onChange={(ignoreZones) => commitSettings({ ignoreZones })}
+              onDone={() => setEditingZones(false)}
+            />
+          )}
           <p class="preview__hint" hidden={!editing()}>
             Drag the card picture, name, and details to position them on the OBS canvas.
           </p>
