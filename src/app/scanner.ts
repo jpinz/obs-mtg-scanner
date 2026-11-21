@@ -4,6 +4,7 @@ import type { OverlaySettings } from "../settings";
 export interface ScanResult {
   cardPresent: boolean;
   cornersValid: boolean;
+  corners: readonly [number, number][];
   cardId: string | null;
   secondaryId?: string | null;
   score: number;
@@ -21,7 +22,12 @@ export interface ScannerProgress {
   inferenceMode?: string;
 }
 
-interface Applet extends EventTarget {
+export interface Applet extends EventTarget {
+  config: { camera: MediaTrackConstraints };
+  /** Opens the camera from `config.camera` and starts scanning. */
+  start(): Promise<void>;
+  stop(): void;
+  updateConfig(config: { matchThreshold?: number }): void;
   dispose(): void;
 }
 
@@ -35,6 +41,13 @@ export interface ScannerCallbacks {
   onResult(result: ScanResult): void;
   onCardDetected(card: CardDetection): void;
   onError(message: string): void;
+}
+
+export interface ScannerOptions {
+  camera: MediaTrackConstraints;
+  threshold: number;
+  /** Restricts recognition to these Scryfall print IDs; omit to match the whole catalog. */
+  allowedCardIds?: readonly string[];
 }
 
 export function appletModuleUrl(baseUri: string = document.baseURI): string {
@@ -51,24 +64,27 @@ export function cameraConstraints(settings: OverlaySettings): MediaTrackConstrai
   };
 }
 
-export async function startScanner(
+/** Loads the models without opening the camera; call `start()` on the result to begin scanning. */
+export async function createScanner(
   target: HTMLElement,
-  settings: OverlaySettings,
+  options: ScannerOptions,
   callbacks: ScannerCallbacks,
 ): Promise<Applet> {
   const module = (await import(/* @vite-ignore */ appletModuleUrl())) as AppletModule;
   return module.createCollectorVisionScannerApplet({
     target,
-    matchThreshold: settings.threshold,
-    catalogMode: settings.catalog,
+    autoStart: false,
+    matchThreshold: options.threshold,
+    allowedCardIds: options.allowedCardIds,
     consecutiveMatches: 2,
     cooldownMs: 1500,
     // Same cadence as the hosted demo; the applet skips ticks while the worker is busy.
     scanIntervalMs: 50,
     groupBySecondaryId: false,
-    overlay: settings.debug,
-    showFpsOverlay: settings.debug,
-    camera: cameraConstraints(settings),
+    // The detection outline and FPS counter are always drawn; CSS shows them only in debug mode.
+    overlay: true,
+    showFpsOverlay: true,
+    camera: options.camera,
     onReady: (info: { inferenceMode?: string; numThreads?: number }) => callbacks.onReady(info),
     onProgress: (progress: ScannerProgress) => callbacks.onProgress(progress),
     onResult: (result: ScanResult) => callbacks.onResult(result),
