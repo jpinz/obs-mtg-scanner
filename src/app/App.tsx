@@ -34,6 +34,8 @@ import {
   type OverlaySettings,
 } from "../settings";
 import { CardFeed } from "./cardFeed";
+import { HistoryPanel } from "./HistoryPanel";
+import { HISTORY_STORAGE_KEY, parseHistory, summarizeHistory, type HistoryEntry } from "./history";
 import { IgnoreZoneEditor } from "./IgnoreZoneEditor";
 import type { OverlaySession } from "./overlaySession";
 import { cameraConstraints, createScanner } from "./scanner";
@@ -186,6 +188,18 @@ export function App(props: { session: OverlaySession }) {
   const [copied, setCopied] = createSignal(false);
   const [editing, setEditing] = createSignal(false);
   const [editingZones, setEditingZones] = createSignal(false);
+  const [activeTab, setActiveTab] = createSignal<"settings" | "history">("settings");
+  const [historyError, setHistoryError] = createSignal<string | null>(null);
+  const [history, setHistory] = createSignal<HistoryEntry[]>(() => {
+    try {
+      return parseHistory(localStorage.getItem(HISTORY_STORAGE_KEY));
+    } catch (error) {
+      console.error("Could not load card history", error);
+      setHistoryError("Could not load saved history. Changes may replace it.");
+      return [];
+    }
+  });
+  const scryfall = new ScryfallClient();
   // Sliders preview locally while dragging and commit on release.
   const [thresholdDraft, setThresholdDraft] = createSignal(() => settings.threshold);
   const [textSizeDraft, setTextSizeDraft] = createSignal(() => settings.textSize);
@@ -205,6 +219,26 @@ export function App(props: { session: OverlaySession }) {
   function publish(event: ObsOverlayEvent) {
     obsConnection?.broadcast(event);
     sendToPreview(event);
+  }
+
+  function updateHistory(next: HistoryEntry[]) {
+    setHistory(next);
+    try {
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(next));
+      setHistoryError(null);
+    } catch (error) {
+      console.error("Could not save card history", error);
+      setHistoryError("Could not save history in this browser. Changes will be lost on reload.");
+    }
+  }
+
+  function addToHistory(card: CardInfo) {
+    updateHistory([{ id: crypto.randomUUID(), card, addedAt: new Date().toISOString() }, ...history()]);
+  }
+
+  function totalEvent(): ObsOverlayEvent {
+    const { text, missing, count } = summarizeHistory(history(), settings.currency);
+    return { type: "total", sessionId: props.session.sessionId, text, missing, count };
   }
 
   function sendEditState(on: boolean) {
@@ -349,6 +383,11 @@ export function App(props: { session: OverlaySession }) {
   }, { defer: true });
   createEffect(editing, (on) => sendEditState(on), { defer: true });
   createEffect(
+    () => ({ entries: history(), currency: settings.currency }),
+    () => publish(totalEvent()),
+    { defer: true },
+  );
+  createEffect(
     () => settings.duration,
     (seconds) => {
       if (feed) feed.durationMs = seconds * 1000;
@@ -422,6 +461,7 @@ export function App(props: { session: OverlaySession }) {
         card: latestCard,
         confidence: latestConfidence,
       });
+      send(totalEvent());
       if (latestTracking) send(latestTracking);
     };
     const connection = new ObsWebSocketClient(
@@ -467,7 +507,6 @@ export function App(props: { session: OverlaySession }) {
       }
     };
     window.addEventListener("message", onPreviewMessage);
-    const scryfall = new ScryfallClient();
     const cardFeed = new CardFeed(
       {
         lookup: (cardId, signal) => scryfall.getCard(cardId, signal),
@@ -477,6 +516,7 @@ export function App(props: { session: OverlaySession }) {
           if (!card) latestTracking = null;
           else setLookupError(null);
           publish({ type: "card", sessionId: props.session.sessionId, card, confidence: latestConfidence });
+          if (card) addToHistory(card);
         },
         onError: setLookupError,
       },
@@ -641,7 +681,7 @@ export function App(props: { session: OverlaySession }) {
             />
           )}
           <p class="preview__hint" hidden={!editing()}>
-            Drag the card picture, name, and details to position them on the OBS canvas.
+            Drag the card picture, name, details, and total to position them on the OBS canvas.
           </p>
           <p
             class={[
@@ -706,7 +746,26 @@ export function App(props: { session: OverlaySession }) {
           </section>
         </section>
 
-        <form class="controls" autocomplete="off" onSubmit={(event) => event.preventDefault()}>
+        <aside class="sidebar">
+          <div class="tabs" role="tablist" aria-label="Scanner panels">
+            <button type="button" role="tab" id="settings-tab" aria-controls="settings-panel" aria-selected={activeTab() === "settings" ? "true" : "false"}
+              tabindex={activeTab() === "settings" ? 0 : -1}
+              onClick={() => setActiveTab("settings")}
+              onKeyDown={(event) => { if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); setActiveTab("history"); document.getElementById("history-tab")?.focus(); } }}>Settings</button>
+            <button type="button" role="tab" id="history-tab" aria-controls="history-panel" aria-selected={activeTab() === "history" ? "true" : "false"}
+              tabindex={activeTab() === "history" ? 0 : -1}
+              onClick={() => setActiveTab("history")}
+              onKeyDown={(event) => { if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); setActiveTab("settings"); document.getElementById("settings-tab")?.focus(); } }}>History <span>{history().length}</span></button>
+          </div>
+          <div id="history-panel" role="tabpanel" aria-labelledby="history-tab" hidden={activeTab() !== "history"}>
+            <p class="history__error" role="alert" hidden={!historyError()}>{historyError()}</p>
+            <HistoryPanel entries={history()} currency={settings.currency} client={scryfall}
+              onAdd={addToHistory}
+              onReplace={(id, card) => updateHistory(history().map((entry) => entry.id === id ? { ...entry, card } : entry))}
+              onRemove={(id) => updateHistory(history().filter((entry) => entry.id !== id))}
+            />
+          </div>
+        <form id="settings-panel" role="tabpanel" aria-labelledby="settings-tab" hidden={activeTab() !== "settings"} class="controls" autocomplete="off" onSubmit={(event) => event.preventDefault()}>
           <div class="controls__heading">
             <h2>Scanner settings</h2>
             <p>Changes apply automatically.</p>
@@ -795,6 +854,7 @@ export function App(props: { session: OverlaySession }) {
                 checked={settings.allFinishes}
                 onChange={(on) => commit("finishes", on ? "1" : "0")}
               />
+              <CheckField label="Show total value" checked={settings.showTotal} onChange={(on) => commit("total", on ? "1" : "0")} />
               <SelectField
                 label="Theme"
                 value={settings.theme}
@@ -908,6 +968,7 @@ export function App(props: { session: OverlaySession }) {
             </fieldset>
           </div>
         </form>
+        </aside>
       </main>
     </div>
   );

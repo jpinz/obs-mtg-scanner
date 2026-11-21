@@ -116,6 +116,27 @@ body,
   box-shadow: 0 0.75em 2.5em rgba(0, 0, 0, 0.45);
 }
 
+.total-value {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4em 0.7em;
+  font-size: 1em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pinned--total .surface {
+  font-size: inherit;
+}
+
+.total-value strong {
+  font-size: 1.3em;
+}
+
+.total-value small {
+  color: var(--panel-muted);
+}
+
 .pinned {
   position: absolute;
   opacity: 0;

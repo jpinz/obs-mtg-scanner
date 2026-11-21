@@ -25,11 +25,13 @@ describe("parseSettings", () => {
       showImage: false,
       showName: false,
       showDetails: false,
+      showTotal: true,
       details: ["set", "price", "confidence"],
       layout: {
         image: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
         name: { x: 0.3, y: 0.4, width: 0.2, height: 0.05 },
         details: { x: 0.5, y: 0.6, width: 0.25, height: 0.3 },
+        total: DEFAULT_SETTINGS.layout.total,
       },
       textSize: 20,
       nameTextSize: 32,
@@ -75,11 +77,20 @@ describe("parseSettings", () => {
       image: DEFAULT_SETTINGS.layout.image,
       name: DEFAULT_SETTINGS.layout.name,
       details: { x: 0.5, y: 0, width: 0.5, height: 0.02 },
+      total: DEFAULT_SETTINGS.layout.total,
     });
   });
 
   it("reads legacy x,y positions with the default size", () => {
     expect(parseSettings("?npos=0.1,0.2").layout.name).toEqual({ ...DEFAULT_SETTINGS.layout.name, x: 0.1, y: 0.2 });
+  });
+
+  it("round-trips the total overlay visibility and layout", () => {
+    const settings = { ...DEFAULT_SETTINGS, showTotal: false, layout: setLayoutBox(DEFAULT_SETTINGS.layout, "total", { x: 0.3 }) };
+    const query = serializeOverlaySettings(settings);
+    expect(query.get("total")).toBe("0");
+    expect(query.get("tpos")).toBe("0.3,0.05,0.18,0.09");
+    expect(parseSettings(query)).toEqual(settings);
   });
 
   it("translates legacy scale and image width params", () => {

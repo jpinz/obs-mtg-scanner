@@ -15,6 +15,12 @@ describe("OBS connection URL settings", () => {
   });
 
   describe("OBS card events", () => {
+    it("validates total events before displaying them", () => {
+      const event = { source: "obs-mtg-scanner", type: "total", sessionId: "session", text: "$12.00", count: 3, missing: 1 };
+      expect(parseObsOverlayEvent(event)).toEqual({ type: "total", sessionId: "session", text: "$12.00", count: 3, missing: 1 });
+      expect(parseObsOverlayEvent({ ...event, missing: 4 })).toBeNull();
+      expect(parseObsOverlayEvent({ ...event, count: -1 })).toBeNull();
+    });
     it("parses confidence scores and treats legacy events without a score as unavailable", () => {
       const card = {
         id: "card-id",

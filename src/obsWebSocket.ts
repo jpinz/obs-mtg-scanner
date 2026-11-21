@@ -31,7 +31,15 @@ export interface SettingsUpdate {
   settings: string;
 }
 
-export type ObsOverlayEvent = CardTracking | CardUpdate | OverlayReady | SettingsUpdate;
+export interface TotalUpdate {
+  type: "total";
+  sessionId: string;
+  text: string;
+  missing: number;
+  count: number;
+}
+
+export type ObsOverlayEvent = CardTracking | CardUpdate | OverlayReady | SettingsUpdate | TotalUpdate;
 
 export type ObsConnectionStatus =
   | { state: "connecting" }
@@ -69,6 +77,13 @@ export function parseObsOverlayEvent(value: unknown): ObsOverlayEvent | null {
   if (value.type === "settings") {
     if (typeof value.settings !== "string" || value.settings.length > 4096) return null;
     return { type: "settings", sessionId: value.sessionId, settings: value.settings };
+  }
+
+  if (value.type === "total") {
+    if (typeof value.text !== "string" || value.text.length > 64
+      || !Number.isSafeInteger(value.missing) || !Number.isSafeInteger(value.count)
+      || (value.missing as number) < 0 || (value.count as number) < (value.missing as number)) return null;
+    return { type: "total", sessionId: value.sessionId, text: value.text, missing: value.missing as number, count: value.count as number };
   }
 
   if (value.type === "tracking") {

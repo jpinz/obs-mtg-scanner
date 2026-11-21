@@ -83,6 +83,15 @@ describe("formatPrice", () => {
 });
 
 describe("ScryfallClient", () => {
+  it("searches and paginates individual printings by escaped card name", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response({ data: [cardJson()], has_more: true }));
+    const client = new ScryfallClient({ fetch: fetcher, minIntervalMs: 0 });
+    await expect(client.searchPrintings('Fire "Ice"', 2)).resolves.toMatchObject({ cards: [{ id: "card-id" }], hasMore: true });
+    const params = new URL(String(fetcher.mock.calls[0]![0])).searchParams;
+    expect(params.get("q")).toBe('name:"Fire \\"Ice\\""');
+    expect(params.get("page")).toBe("2");
+    expect(params.get("unique")).toBe("prints");
+  });
   it("caches completed cards and deduplicates concurrent requests", async () => {
     let completeRequest: ((value: Response) => void) | undefined;
     const fetcher = vi.fn(() => new Promise<Response>((resolve) => { completeRequest = resolve; }));

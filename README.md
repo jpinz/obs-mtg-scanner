@@ -14,6 +14,8 @@ Recognition runs entirely in your browser using a fork of [CollectorVision](http
 
 The app also previews the same overlay over its camera feed. If another app (including an OBS *Video Capture Device* source) is already using the webcam, select **OBS Virtual Camera** in the app or release the camera in the other app.
 
+The **History** tab records each successfully identified printing and lets you add a printing by card name, replace an entry with another printing, or remove it. History is saved in this browser; repeated detections of the same card while its panel remains active count once. The total overlay sums the selected price for each entry, using the same finish fallback as the card panel. It excludes entries without a price and marks them as unpriced; prices are saved at lookup time and are not refreshed automatically. Change the price setting to switch currency or finish. Turn off **Show total value** or use **Edit layout** to move and resize the total.
+
 To exclude part of the camera image from recognition, start the camera and select **Ignore zones**. Click at least three points around an area, then select **Save zone**. Add multiple zones or remove them individually; **Undo point** removes the last point of the current draft. Keyboard users can focus the video, move the cursor with the arrow keys (Shift for larger steps), and press Enter to add points. Zones are saved with scanner settings and apply to any selected camera; check them after changing cameras. They follow the video when mirroring or changing resolution and are not shown in OBS. The scanner masks the areas before recognition and rejects detections that overlap them.
 
 When a WebSocket password is set, **Copy URL** includes it in the URL fragment (`#obsPassword=…`) so the Browser Source logs in automatically; the URL shown in the app masks it. Copy the URL again after changing the password. A fragment password takes precedence over a password saved in the Browser Source's browser profile and is not saved automatically. If the URL has no password and OBS requires one, use the Browser Source's **Interact** window to enter it. Fragments are not sent in the HTTP request to Vercel, but the password remains visible in OBS source settings; treat the copied URL as a secret.
@@ -29,6 +31,8 @@ The default port is omitted from the URL; changing to a custom port requires cop
 | `image` | `1` / `0` | `1` | Show the pinned card image |
 | `name` | `1` / `0` | `1` | Show the pinned card name |
 | `info` | `1` / `0` | `1` | Show the pinned card details |
+| `total` | `1` / `0` | `1` | Show the total value of history entries |
+| `tpos` | `x,y,width,height` fractions `0`–`1` | `0.02,0.05,0.18,0.09` | Box of the pinned total value |
 | `details` | comma-separated `set`, `number`, `rarity`, `price`, or `none` | all | Fields shown in the pinned details |
 | `ipos`, `npos`, `dpos` | `x,y,width,height` fractions `0`–`1` | `0.8,0.06,0.1563,0.3871`, `0.8,0.47,0.18,0.05`, `0.8,0.53,0.18,0.2` | Box of the pinned image, name, and details. Drag them in the app preview to move them, or drag their edges and corners to resize. Text wraps inside the box; the image keeps its card proportions. |
 | `ts` | `8`–`96` | `16` | Base text size in canvas pixels for all overlay text |
