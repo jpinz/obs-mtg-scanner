@@ -1,20 +1,38 @@
-import type { CardInfo } from "../scryfall";
+import type { CardInfo, ScannedCard } from "../scryfall";
+import type { OverlaySettings } from "../settings";
 import { PresenceTracker } from "./presence";
 
+type CardIgnoreSettings = Pick<OverlaySettings, "ignoreArtCards" | "ignoreTokenCards" | "ignoreNonPlayableCards">;
+
+export function isIgnoredCard(card: ScannedCard, settings: CardIgnoreSettings): boolean {
+  return (settings.ignoreArtCards && card.isArtCard)
+    || (settings.ignoreTokenCards && card.isTokenCard)
+    || (settings.ignoreNonPlayableCards && card.isNonPlayable);
+}
+
 export interface CardFeedDeps {
-  lookup(cardId: string, signal: AbortSignal): Promise<CardInfo>;
+  lookup(cardId: string, signal: AbortSignal): Promise<ScannedCard>;
+  shouldIgnore(card: ScannedCard): boolean;
   /** Publishes card state to the overlay; `null` hides the panel. */
   publish(card: CardInfo | null, confidence: number | null): void;
-  onError(message: string): void;
+  onNewCard(card: CardInfo): void;
+  onError(message: string | null): void;
+}
+
+interface ResolvedCard {
+  result: ScannedCard;
+  confidence: number | null;
+  recorded: boolean;
 }
 
 /**
- * Turns scanner detections into what the overlay shows: looks each new card up
- * once, keeps it up while it stays in frame, and hides it `durationMs` after it leaves.
+ * Looks up detections, suppresses ignored cards, and hides the panel after the card leaves.
  */
 export class CardFeed {
   private readonly presence: PresenceTracker;
   private lookup: AbortController | null = null;
+  private current: ResolvedCard | null = null;
+  private displayed: ResolvedCard | null = null;
 
   constructor(
     private readonly deps: CardFeedDeps,
@@ -28,7 +46,7 @@ export class CardFeed {
   }
 
   get cardId(): string | null {
-    return this.presence.cardId;
+    return this.displayed?.result.card.id === this.presence.cardId ? this.presence.cardId : null;
   }
 
   observe(cardPresent: boolean, now: number): void {
@@ -38,21 +56,45 @@ export class CardFeed {
   async detected(cardId: string, now: number, confidence: number | null = null): Promise<void> {
     if (!this.presence.show(cardId, now)) return;
     this.lookup?.abort();
+    this.current = null;
     const controller = new AbortController();
     this.lookup = controller;
     try {
-      const card = await this.deps.lookup(cardId, controller.signal);
+      const result = await this.deps.lookup(cardId, controller.signal);
       if (controller.signal.aborted || this.presence.cardId !== cardId) return;
-      this.deps.publish(card, confidence);
+      this.deps.onError(null);
+      this.current = { result, confidence, recorded: false };
+      this.refreshIgnoreRules();
     } catch (error) {
       if (controller.signal.aborted) return;
       console.error("Scryfall lookup failed", error);
       // Forget the card so the next detection of it retries the lookup.
       if (this.presence.cardId === cardId) {
         this.presence.clear();
-        this.deps.publish(null, null);
+        this.hide();
       }
       this.deps.onError(`Card lookup failed for ${cardId}`);
+    }
+  }
+
+  refreshIgnoreRules(): void {
+    const current = this.current;
+    if (current) {
+      if (this.deps.shouldIgnore(current.result)) {
+        if (this.displayed) {
+          this.displayed = null;
+          this.deps.publish(null, null);
+        }
+      } else if (this.displayed !== current) {
+        const isNew = !current.recorded;
+        current.recorded = true;
+        this.displayed = current;
+        this.deps.publish(current.result.card, current.confidence);
+        if (isNew) this.deps.onNewCard(current.result.card);
+      }
+    } else if (this.displayed && this.deps.shouldIgnore(this.displayed.result)) {
+      this.displayed = null;
+      this.deps.publish(null, null);
     }
   }
 
@@ -69,6 +111,8 @@ export class CardFeed {
   private hide(): void {
     this.lookup?.abort();
     this.lookup = null;
+    this.current = null;
+    this.displayed = null;
     this.deps.publish(null, null);
   }
 }
