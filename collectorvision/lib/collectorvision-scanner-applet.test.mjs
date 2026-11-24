@@ -3,7 +3,7 @@ import { createCollectorVisionScannerApplet } from "./collectorvision-scanner-ap
 
 class FakeElement {
   context = {
-    drawImage: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(),
+    drawImage: vi.fn(), save: vi.fn(), restore: vi.fn(), fillRect: vi.fn(), beginPath: vi.fn(),
     moveTo: vi.fn(), lineTo: vi.fn(), closePath: vi.fn(), fill: vi.fn(),
   };
   getContext() { return this.context; }
@@ -51,7 +51,7 @@ describe("CollectorVision scanner applet", () => {
     });
     const onResult = vi.fn();
     const onCardDetected = vi.fn();
-    const zone = [[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.4]];
+    const zone = { x: 0.1, y: 0.1, width: 0.3, height: 0.3 };
     const applet = await createCollectorVisionScannerApplet({
       target: new FakeElement(), autoStart: false, ignoreZones: [zone],
       consecutiveMatches: 1, cooldownMs: 0, onResult, onCardDetected,
@@ -60,9 +60,8 @@ describe("CollectorVision scanner applet", () => {
     applet.elements.video.videoWidth = 1000;
     applet.elements.video.videoHeight = 500;
     expect(applet.drawCaptureFrame()).toBe(true);
-    expect(applet.captureCtx.moveTo).toHaveBeenCalledWith(100, 50);
-    expect(applet.captureCtx.lineTo).toHaveBeenCalledWith(400, 200);
-    expect(applet.captureCtx.fill).toHaveBeenCalledOnce();
+    expect(applet.captureCtx.fillRect).toHaveBeenCalledOnce();
+    expect(applet.captureCtx.fillRect).toHaveBeenCalledWith(100, 50, 300, 150);
 
     const result = {
       cardPresent: true, cornersValid: true, score: 0.9, cardId: "card",
@@ -73,12 +72,18 @@ describe("CollectorVision scanner applet", () => {
     expect(onCardDetected).not.toHaveBeenCalled();
     applet.handleResult({ ...result, corners: [[0, 0], [1, 0], [1, 1], [0, 1]] });
     expect(onCardDetected).not.toHaveBeenCalled();
-    applet.handleResult({ ...result, corners: [[0.6, 0.6], [0.9, 0.6], [0.9, 0.9], [0.6, 0.9]] });
+    applet.handleResult({ ...result, corners: [[0, 0.2], [0.6, 0.2], [0.6, 0.3], [0, 0.3]] });
+    expect(onCardDetected).not.toHaveBeenCalled();
+    applet.handleResult({ ...result, corners: [[0.4, 0.2], [0.6, 0.2], [0.6, 0.3], [0.4, 0.3]] });
+    expect(onCardDetected).not.toHaveBeenCalled();
+    applet.handleResult({ ...result, corners: [[0.65, 0.35], [0.95, 0.65], [0.65, 0.95], [0.35, 0.65]] });
     expect(onCardDetected).toHaveBeenCalledOnce();
+    applet.handleResult({ ...result, corners: [[0.6, 0.6], [0.9, 0.6], [0.9, 0.9], [0.6, 0.9]] });
+    expect(onCardDetected).toHaveBeenCalledTimes(2);
 
     applet.updateConfig({ ignoreZones: [] });
     applet.handleResult(result);
-    expect(onCardDetected).toHaveBeenCalledTimes(2);
+    expect(onCardDetected).toHaveBeenCalledTimes(3);
     applet.dispose();
   });
 });

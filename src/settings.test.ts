@@ -115,13 +115,31 @@ describe("parseSettings", () => {
     expect(parseSettings("?query=%20%20").query).toBe("");
   });
 
-  it("round-trips valid ignore polygons and rejects malformed or degenerate ones", () => {
-    const zones = [[[0.1, 0.2], [0.8, 0.2], [0.5, 0.9]]] as const;
+  it("round-trips ignore boxes and migrates only rectangular legacy zones", () => {
+    const zones = [{ x: 0.1, y: 0.2, width: 0.7, height: 0.6 }] as const;
     const query = serializeSettings({ ...DEFAULT_SETTINGS, ignoreZones: zones });
     expect(parseSettings(query).ignoreZones).toEqual(zones);
     expect(serializeOverlaySettings({ ...DEFAULT_SETTINGS, ignoreZones: zones }).has("ignore")).toBe(false);
-    query.set("ignore", JSON.stringify([...zones, [[0, 0], [1, 1], [0.5, 0.5]], [[-1, 0], [1, 0], [0, 1]]]));
-    expect(parseSettings(query).ignoreZones).toEqual(zones);
+    query.set("ignore", JSON.stringify([
+      ...zones,
+      [[0.1, 0.2], [0.8, 0.2], [0.8, 0.9], [0.1, 0.9]],
+      [[0.1, 0.2], [0.8, 0.2], [0.5, 0.9]],
+      [[0.1, 0.2], [0.8, 0.2], [0.7, 0.9], [0.1, 0.9]],
+      [[0.1, 0.2], [0.8, 0.9], [0.8, 0.2], [0.1, 0.9]],
+      [[0.1, 0.2], [0.8, 0.2], [0.8, 0.2], [0.1, 0.9]],
+      { x: -0.1, y: 0, width: 0.3, height: 0.3 },
+      { x: 0.9, y: 0, width: 0.2, height: 0.3 },
+      { x: 0, y: 0, width: 0, height: 0.3 },
+      { x: 0, y: 0, width: 0.0000005, height: 1 },
+      { x: "0", y: 0, width: 0.2, height: 0.3 },
+      null,
+    ]));
+    expect(parseSettings(query).ignoreZones).toEqual([
+      ...zones,
+      { x: 0.1, y: 0.2, width: 0.8 - 0.1, height: 0.9 - 0.2 },
+    ]);
+    query.set("ignore", '[{"x":0,"y":0,"width":1e400,"height":1}]');
+    expect(parseSettings(query).ignoreZones).toEqual([]);
     query.set("ignore", "{");
     expect(parseSettings(query).ignoreZones).toEqual([]);
   });

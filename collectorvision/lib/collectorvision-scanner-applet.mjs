@@ -62,28 +62,20 @@ function clamp01(value) {
   return Math.min(1, Math.max(0, Number(value) || 0));
 }
 
-function polygonsIntersect(a, b) {
-  const cross = (p, q, r) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
-  const onSegment = (p, q, r) => cross(p, q, r) === 0
-    && r[0] >= Math.min(p[0], q[0]) && r[0] <= Math.max(p[0], q[0])
-    && r[1] >= Math.min(p[1], q[1]) && r[1] <= Math.max(p[1], q[1]);
-  const intersects = (p, q, r, s) => {
-    const a = cross(p, q, r), b = cross(p, q, s), c = cross(r, s, p), d = cross(r, s, q);
-    return (a * b < 0 && c * d < 0)
-      || onSegment(p, q, r) || onSegment(p, q, s) || onSegment(r, s, p) || onSegment(r, s, q);
-  };
-  const contains = (polygon, point) => {
-    let inside = false;
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-      const p = polygon[i], q = polygon[j];
-      if (onSegment(p, q, point)) return true;
-      if ((p[1] > point[1]) !== (q[1] > point[1])
-        && point[0] < (q[0] - p[0]) * (point[1] - p[1]) / (q[1] - p[1]) + p[0]) inside = !inside;
-    }
-    return inside;
-  };
-  if (contains(a, b[0]) || contains(b, a[0])) return true;
-  return a.some((p, i) => b.some((r, j) => intersects(p, a[(i + 1) % a.length], r, b[(j + 1) % b.length])));
+function ignoreBoxOverlapsCard({ x, y, width, height }, corners) {
+  const box = [[x, y], [x + width, y], [x + width, y + height], [x, y + height]];
+  // The worker only marks convex card quadrilaterals as valid.
+  const axes = [[1, 0], [0, 1], ...corners.map(([px, py], i) => {
+    const next = corners[(i + 1) % corners.length];
+    return [next[1] - py, px - next[0]];
+  })];
+  return axes.every(([ax, ay]) => {
+    const project = ([px, py]) => px * ax + py * ay;
+    const boxProjection = box.map(project);
+    const cardProjection = corners.map(project);
+    return Math.max(...boxProjection) >= Math.min(...cardProjection)
+      && Math.max(...cardProjection) >= Math.min(...boxProjection);
+  });
 }
 
 function formatMetric(value) {
@@ -449,7 +441,7 @@ export class CollectorVisionScannerApplet extends EventTarget {
 
   handleResult(result) {
     if (result.cardPresent && result.cornersValid && Array.isArray(result.corners) && result.corners.length >= 3
-      && this.config.ignoreZones.some((zone) => polygonsIntersect(zone, result.corners))) {
+      && this.config.ignoreZones.some((zone) => ignoreBoxOverlapsCard(zone, result.corners))) {
       result = { ...result, cardPresent: false, cornersValid: false, cardId: null };
     }
     this.lastResult = result;
@@ -562,14 +554,13 @@ export class CollectorVisionScannerApplet extends EventTarget {
     if (this.config.ignoreZones.length) {
       this.captureCtx.save();
       this.captureCtx.fillStyle = "#000";
-      for (const zone of this.config.ignoreZones) {
-        this.captureCtx.beginPath();
-        zone.forEach(([x, y], i) => {
-          if (i === 0) this.captureCtx.moveTo(x * this.captureCanvas.width, y * this.captureCanvas.height);
-          else this.captureCtx.lineTo(x * this.captureCanvas.width, y * this.captureCanvas.height);
-        });
-        this.captureCtx.closePath();
-        this.captureCtx.fill();
+      for (const { x, y, width, height } of this.config.ignoreZones) {
+        this.captureCtx.fillRect(
+          x * this.captureCanvas.width,
+          y * this.captureCanvas.height,
+          width * this.captureCanvas.width,
+          height * this.captureCanvas.height,
+        );
       }
       this.captureCtx.restore();
     }

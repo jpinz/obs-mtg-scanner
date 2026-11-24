@@ -1,7 +1,9 @@
-import { createSignal, For, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
 import { formatPrice, ScryfallClient, type CardInfo } from "../scryfall";
 import { CURRENCY_LABELS, type Currency } from "../settings";
 import { replaceHistoryCard, summarizeHistory, type HistoryEntry } from "./history";
+
+const timestampFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "medium" });
 
 export function HistoryPanel(props: {
   entries: readonly HistoryEntry[];
@@ -9,7 +11,7 @@ export function HistoryPanel(props: {
   client: ScryfallClient;
   onAdd(card: CardInfo): void;
   onReplace(id: string, card: CardInfo): void;
-  onRemove(id: string): void;
+  onRemove(ids: readonly string[]): void;
 }) {
   const [query, setQuery] = createSignal("");
   const [editingId, setEditingId] = createSignal<string | null>(null);
@@ -19,8 +21,50 @@ export function HistoryPanel(props: {
   const [hasMore, setHasMore] = createSignal(false);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+  const [selectedIds, setSelectedIds] = createSignal<ReadonlySet<string>>(new Set());
+  const selectedEntries = createMemo(() => {
+    const selected = selectedIds();
+    return props.entries.filter((entry) => selected.has(entry.id));
+  });
+  let selectAll: HTMLInputElement | undefined;
   let request: AbortController | undefined;
   let searched = "";
+
+  createEffect(
+    () => ({ selected: selectedEntries().length, total: props.entries.length }),
+    ({ selected, total }) => {
+      if (selectAll) selectAll.indeterminate = selected > 0 && selected < total;
+    },
+  );
+
+  function selectEntry(id: string, checked: boolean) {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function removeEntries(ids: readonly string[]) {
+    const removed = new Set(ids);
+    const edited = editingId();
+    if (edited !== null && removed.has(edited)) closeSearch();
+    setSelectedIds((previous) => new Set([...previous].filter((id) => !removed.has(id))));
+    props.onRemove(ids);
+  }
+
+  function deleteSelected() {
+    const selected = selectedEntries();
+    if (!selected.length || !window.confirm(`Delete ${selected.length} selected ${selected.length === 1 ? "card" : "cards"} from history?`)) return;
+    removeEntries(selected.map((entry) => entry.id));
+  }
+
+  function clearHistory() {
+    const entries = props.entries;
+    if (!entries.length || !window.confirm(`Clear all ${entries.length} ${entries.length === 1 ? "card" : "cards"} from history?`)) return;
+    removeEntries(entries.map((entry) => entry.id));
+  }
 
   function openSearch(entry?: HistoryEntry) {
     request?.abort();
@@ -124,21 +168,40 @@ export function HistoryPanel(props: {
         </div>
       </Show>
       <Show when={props.entries.length > 0} fallback={<p class="history__empty">Scanned cards appear here. You can also add a printing manually.</p>}>
+        <div class="history__bulk">
+          <label class="history__select-all">
+            <input type="checkbox"
+              ref={selectAll}
+              checked={selectedEntries().length === props.entries.length}
+              onChange={(event) => setSelectedIds(event.currentTarget.checked ? new Set(props.entries.map((entry) => entry.id)) : new Set())} />
+            <span>Select all</span>
+          </label>
+          <div class="history__bulk-buttons">
+            <button type="button" class="button button--secondary" disabled={selectedEntries().length === 0} onClick={deleteSelected}>
+              Delete selected{selectedEntries().length > 0 && ` (${selectedEntries().length})`}
+            </button>
+            <button type="button" class="button button--secondary" onClick={clearHistory}>Clear all</button>
+          </div>
+        </div>
         <ul class="history-list">
           <For each={props.entries} keyed={(entry) => entry.id}>
             {(entry) => (
               <li>
-                <div class="history-list__card">
-                  <strong>{entry().card.name}</strong>
-                  <span>{entry().card.setName} · {entry().card.setCode} #{entry().card.collectorNumber}{entry().card.assumedFoil ? " · Foil (assumed)" : ""}</span>
-                  <span>{formatPrice(entry().card, props.currency)?.text ?? "No price"}</span>
-                </div>
+                <label class="history-list__select">
+                  <input type="checkbox"
+                    aria-label={`Select ${entry().card.name}, ${entry().card.setName} #${entry().card.collectorNumber}, recorded ${timestampFormat.format(new Date(entry().addedAt))}`}
+                    checked={selectedIds().has(entry().id)}
+                    onChange={(event) => selectEntry(entry().id, event.currentTarget.checked)} />
+                  <span class="history-list__card">
+                    <strong>{entry().card.name}</strong>
+                    <span>{entry().card.setName} · {entry().card.setCode} #{entry().card.collectorNumber}{entry().card.assumedFoil ? " · Foil (assumed)" : ""}</span>
+                    <span>{formatPrice(entry().card, props.currency)?.text ?? "No price"}</span>
+                    <time datetime={entry().addedAt}>Recorded {timestampFormat.format(new Date(entry().addedAt))}</time>
+                  </span>
+                </label>
                 <div class="history-list__actions">
                   <button type="button" class="button button--secondary" aria-label={`Edit ${entry().card.name}`} onClick={() => openSearch(entry())}>Edit</button>
-                  <button type="button" class="button button--secondary" aria-label={`Remove ${entry().card.name}`} onClick={() => {
-                    if (editingId() === entry().id) closeSearch();
-                    props.onRemove(entry().id);
-                  }}>Remove</button>
+                  <button type="button" class="button button--secondary" aria-label={`Remove ${entry().card.name}`} onClick={() => removeEntries([entry().id])}>Remove</button>
                 </div>
               </li>
             )}

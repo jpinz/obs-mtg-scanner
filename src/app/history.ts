@@ -31,6 +31,11 @@ export function replaceHistoryCard(entry: HistoryEntry, card: CardInfo): History
   };
 }
 
+export function removeHistoryEntries(entries: readonly HistoryEntry[], ids: readonly string[]): HistoryEntry[] {
+  const removed = new Set(ids);
+  return entries.filter((entry) => !removed.has(entry.id));
+}
+
 export function summarizeHistory(entries: readonly HistoryEntry[], currency: Currency) {
   let cents = 0;
   let missing = 0;
