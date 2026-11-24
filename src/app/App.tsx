@@ -46,9 +46,9 @@ import {
   type LayoutItem,
   type OverlaySettings,
 } from "../settings";
-import { CardFeed } from "./cardFeed";
+import { CardFeed, isIgnoredCard } from "./cardFeed";
 import { HistoryPanel } from "./HistoryPanel";
-import { HISTORY_STORAGE_KEY, parseHistory, summarizeHistory, type HistoryEntry } from "./history";
+import { HISTORY_STORAGE_KEY, parseHistory, removeHistoryEntries, replaceHistoryCard, summarizeHistory, type HistoryEntry } from "./history";
 import { IgnoreZoneEditor } from "./IgnoreZoneEditor";
 import type { OverlaySession } from "./overlaySession";
 import { cameraConstraints, createScanner } from "./scanner";
@@ -312,8 +312,8 @@ export function App(props: { session: OverlaySession }) {
     }
   }
 
-  function addToHistory(card: CardInfo) {
-    updateHistory([{ id: crypto.randomUUID(), card, addedAt: new Date().toISOString() }, ...history()]);
+  function addToHistory(card: CardInfo, addedAt = new Date().toISOString()) {
+    updateHistory([{ id: crypto.randomUUID(), card, addedAt }, ...history()]);
   }
 
   function totalEvent(): ObsOverlayEvent {
@@ -454,6 +454,11 @@ export function App(props: { session: OverlaySession }) {
     if (!enabled) celebrationAudio?.pause();
   }, { defer: true });
   createEffect(
+    () => [settings.ignoreArtCards, settings.ignoreTokenCards, settings.ignoreNonPlayableCards],
+    () => feed?.refreshIgnoreRules(),
+    { defer: true },
+  );
+  createEffect(
     () => JSON.stringify(settings.ignoreZones),
     () => {
       feed?.clear();
@@ -593,16 +598,17 @@ export function App(props: { session: OverlaySession }) {
     const cardFeed = new CardFeed(
       {
         lookup: (cardId, signal) => scryfall.getCard(cardId, signal),
+        shouldIgnore: (card) => isIgnoredCard(card, settings),
+        assumeFoil: () => settings.assumeFoil,
         publish: (card, confidence) => {
           latestCard = card;
           latestConfidence = card ? confidence : null;
           if (!card) latestTracking = null;
-          else setLookupError(null);
           publish({ type: "card", sessionId: props.session.sessionId, card, confidence: latestConfidence });
-          if (card) {
-            addToHistory(card);
-            if (shouldCelebrate(card, settings)) celebrate();
-          }
+        },
+        onNewCard: (card, seenAt) => {
+          addToHistory(card, seenAt);
+          if (shouldCelebrate(card, settings)) celebrate();
         },
         onError: setLookupError,
       },
@@ -848,8 +854,8 @@ export function App(props: { session: OverlaySession }) {
             <p class="history__error" role="alert" hidden={!historyError()}>{historyError()}</p>
             <HistoryPanel entries={history()} currency={settings.currency} client={scryfall}
               onAdd={addToHistory}
-              onReplace={(id, card) => updateHistory(history().map((entry) => entry.id === id ? { ...entry, card } : entry))}
-              onRemove={(id) => updateHistory(history().filter((entry) => entry.id !== id))}
+              onReplace={(id, card) => updateHistory(history().map((entry) => entry.id === id ? replaceHistoryCard(entry, card) : entry))}
+              onRemove={(ids) => updateHistory(removeHistoryEntries(history(), ids))}
             />
           </div>
         <form id="settings-panel" role="tabpanel" aria-labelledby="settings-tab" hidden={activeTab() !== "settings"} class="controls" autocomplete="off" onSubmit={(event) => event.preventDefault()}>
@@ -924,6 +930,33 @@ export function App(props: { session: OverlaySession }) {
                   onChange={(event) => commit("query", event.currentTarget.value)}
                 />
               </label>
+              <div>
+                <CheckField
+                  label="Assume scanned cards are foil when available"
+                  checked={settings.assumeFoil}
+                  onChange={(on) => commit("assumefoil", on ? "1" : "0")}
+                />
+                <p class="help">Only new scans are affected. USD and EUR prices prefer foil when the identified printing has a foil finish.</p>
+              </div>
+              <fieldset class="subgroup check-list">
+                <legend>Ignore recognized cards</legend>
+                <CheckField
+                  label="Ignore art cards"
+                  checked={settings.ignoreArtCards}
+                  onChange={(on) => commit("ignoreart", on ? "1" : "0")}
+                />
+                <CheckField
+                  label="Ignore token cards"
+                  checked={settings.ignoreTokenCards}
+                  onChange={(on) => commit("ignoretokens", on ? "1" : "0")}
+                />
+                <CheckField
+                  label="Ignore non-playable cards"
+                  checked={settings.ignoreNonPlayableCards}
+                  onChange={(on) => commit("ignoreunplayable", on ? "1" : "0")}
+                />
+                <p class="help">Cards with no legal or restricted Scryfall format include art cards and tokens. Ignored cards are not shown or added to history automatically.</p>
+              </fieldset>
             </fieldset>
           </div>
 

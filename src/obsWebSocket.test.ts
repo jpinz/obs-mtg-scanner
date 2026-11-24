@@ -58,6 +58,14 @@ describe("OBS connection URL settings", () => {
         card,
         confidence: null,
       });
+      const foilCard = { ...card, foilAvailable: true, assumedFoil: true };
+      expect(parseObsOverlayEvent({ ...base, card: foilCard })).toEqual({
+        type: "card",
+        sessionId: "session",
+        card: foilCard,
+        confidence: null,
+      });
+      expect(parseObsOverlayEvent({ ...base, card: { ...foilCard, assumedFoil: "yes" } })).toBeNull();
       expect(parseObsOverlayEvent({ ...base, confidence: 1.1 })).toBeNull();
       expect(parseObsOverlayEvent({ ...base, card: null, confidence: 0.876 })).toBeNull();
     });

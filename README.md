@@ -14,7 +14,7 @@ Recognition runs entirely in your browser using a fork of [CollectorVision](http
 
 The app also previews the same overlay over its camera feed. If another app (including an OBS *Video Capture Device* source) is already using the webcam, select **OBS Virtual Camera** in the app or release the camera in the other app.
 
-The **History** tab records each successfully identified printing and lets you add a printing by card name, replace an entry with another printing, or remove it. History is saved in this browser; repeated detections of the same card while its panel remains active count once. The total overlay sums the selected price for each entry, using the same finish fallback as the card panel. It excludes entries without a price and marks them as unpriced; prices are saved at lookup time and are not refreshed automatically. Change the price setting to switch currency or finish. Turn off **Show total value** or use **Edit layout** to move and resize the total.
+The **History** tab records each successfully identified printing and lets you add a printing by card name, replace an entry with another printing, remove selected entries, or clear all history. Each entry shows when it was recorded in the browser's local time zone. History is saved in this browser; repeated detections of the same card while its panel remains active count once. The total overlay sums the selected price for each entry, using the same finish fallback as the card panel. It excludes entries without a price and marks them as unpriced; prices are saved at lookup time and are not refreshed automatically. Change the price setting to switch currency or finish. Turn off **Show total value** or use **Edit layout** to move and resize the total.
 
 Enable **Celebrate valuable cards** and enter a threshold to fire side confetti when a newly detected card's selected price meets or exceeds it. This uses the same currency and finish fallback as the card panel; unpriced cards do not trigger it. Holding the same card in frame does not repeat the celebration, and reconnecting OBS does not replay one. Both the preview and OBS celebrate; reduced-motion mode uses a brief, stationary edge sparkle instead of flying confetti. **Test celebration** previews the effect without adding to history.
 
@@ -22,7 +22,11 @@ The bundled [tada fanfare](public/audio/tada_fanfare.mp3) plays by default; sele
 
 Sound credits: [Tada Fanfare A](https://pixabay.com/sound-effects/musical-tada-fanfare-a-6313/) by plasterbrain (Freesound) and [Birthday Party Horn](https://pixabay.com/sound-effects/film-special-effects-birthday-party-horn-250238/) by Universfield, via Pixabay.
 
-To exclude part of the camera image from recognition, start the camera and select **Ignore zones**. Click at least three points around an area, then select **Save zone**. Add multiple zones or remove them individually; **Undo point** removes the last point of the current draft. Keyboard users can focus the video, move the cursor with the arrow keys (Shift for larger steps), and press Enter to add points. Zones are saved with scanner settings and apply to any selected camera; check them after changing cameras. They follow the video when mirroring or changing resolution and are not shown in OBS. The scanner masks the areas before recognition and rejects detections that overlap them.
+Enable **Assume scanned cards are foil when available** under **Recognition** to treat new scans as foil when the identified printing has a foil finish. Their saved history entries and overlay prefer USD or EUR foil prices, falling back to another finish when necessary. Existing entries and manually added cards are unchanged.
+
+Under **Recognition**, the ignore options suppress art cards, token cards, or cards with no legal or restricted Scryfall format after they are recognized. The non-playable option also covers art cards and tokens; playable promotional printings remain eligible. Ignored cards are not displayed or added to history automatically. Existing history and manual additions are unaffected.
+
+To exclude part of the camera image from recognition, start the camera and select **Ignore zones**. Drag on the video to draw a box, drag a box to move it, or drag its edges and corners to resize it. Add multiple zones or remove them individually. Keyboard users can select **Add zone**, then use the arrow keys to move the focused zone, Alt plus the arrow keys to resize it, Shift for larger steps, and Delete to remove it. Zones are saved with scanner settings and apply to any selected camera; check them after changing cameras. They follow the video when mirroring or changing resolution and are not shown in OBS. The scanner masks the areas before recognition and rejects detections that overlap them.
 
 When a WebSocket password is set, **Copy URL** includes it in the URL fragment (`#obsPassword=…`) so the Browser Source logs in automatically; the URL shown in the app masks it. Copy the URL again after changing the password. A fragment password takes precedence over a password saved in the Browser Source's browser profile and is not saved automatically. If the URL has no password and OBS requires one, use the Browser Source's **Interact** window to enter it. Fragments are not sent in the HTTP request to Vercel, but the password remains visible in OBS source settings; treat the copied URL as a secret.
 
@@ -53,12 +57,16 @@ The default port is omitted from the URL; changing to a custom port requires cop
 | `sides` | comma-separated `top`, `bottom`, `left`, `right`, or `none` | `top,bottom` | Sides of the card the follow panel may use; it picks the allowed side with the most room |
 | `duration` | seconds | `8` | How long the panel stays after the card leaves the frame (`0` = until the next card) |
 | `threshold` | `0`–`1` | `0.5` | Minimum match score |
+| `assumefoil` | `1` / `0` | `0` | Treat new scans as foil if the identified printing has a foil finish. |
+| `ignoreart` | `1` / `0` | `0` | Suppress recognized art series cards. |
+| `ignoretokens` | `1` / `0` | `0` | Suppress recognized token cards. |
+| `ignoreunplayable` | `1` / `0` | `0` | Suppress cards with no legal or restricted Scryfall format, including art cards and tokens. |
 | `setcode` | comma-separated set codes, e.g. `woe,mom` | all sets | Restrict recognition candidates to cards from any listed set. Case-insensitive; the parameter may also be repeated. |
 | `query` | Scryfall search syntax | no query filter | Restrict recognition candidates to cards matching a Scryfall query. May be combined with `setcode`. |
 | `camera` | device ID | default camera | Specific camera to use (`MediaDeviceInfo.deviceId`) |
 | `res` | `WIDTHxHEIGHT` | `1280x720` | Requested camera resolution |
 | `mirror` | `1` / `0` | `0` | Mirror the video (recognition always uses the unmirrored frame) |
-| `ignore` | JSON array of polygons | none | Ignore zones as arrays of `[x,y]` vertices in unmirrored frame fractions (`0`–`1`); normally configured in the camera preview. |
+| `ignore` | JSON array of `{x,y,width,height}` objects | none | Ignore boxes in unmirrored frame fractions (`0`–`1`); draw, move, and resize them in the camera preview. Previously saved rectangles are migrated; non-rectangular zones are ignored. |
 | `theme` | `dark`, `light` | `dark` | Panel theme |
 | `accent` | hex color | `f59e0b` | Panel accent color |
 | `debug` | `1` / `0` | `0` | Show the detection outline, FPS, and scanner status |

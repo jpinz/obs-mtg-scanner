@@ -17,7 +17,8 @@ describe("parseSettings", () => {
     const s = parseSettings(
       "?currency=eur_foil&finishes=1&image=0&name=0&info=off&details=price,set,confidence&ipos=0.1,0.2,0.3,0.4&npos=0.3,0.4,0.2,0.05&dpos=0.5,0.6,0.25,0.3"
         + "&ts=20&nts=32&dts=14&dsz=price:28,SET:12,bogus:9,rarity:abc&fts=18"
-        + "&follow=1&sides=right,left&duration=0&threshold=0.7&setcode=woe&query=t%3Acreature&camera=abc&res=1920x1080&mirror=1&theme=light&accent=22c55e&debug=on",
+        + "&follow=1&sides=right,left&duration=0&threshold=0.7&assumefoil=on&ignoreart=1&ignoretokens=on&ignoreunplayable=yes"
+        + "&setcode=woe&query=t%3Acreature&camera=abc&res=1920x1080&mirror=1&theme=light&accent=22c55e&debug=on",
     );
     expect(s).toEqual<OverlaySettings>({
       currency: "eur_foil",
@@ -45,6 +46,10 @@ describe("parseSettings", () => {
       followSides: ["left", "right"],
       duration: 0,
       threshold: 0.7,
+      assumeFoil: true,
+      ignoreArtCards: true,
+      ignoreTokenCards: true,
+      ignoreNonPlayableCards: true,
       setCodes: ["woe"],
       query: "t:creature",
       camera: "abc",
@@ -123,15 +128,55 @@ describe("parseSettings", () => {
     expect(parseSettings("?query=%20%20").query).toBe("");
   });
 
-  it("round-trips valid ignore polygons and rejects malformed or degenerate ones", () => {
-    const zones = [[[0.1, 0.2], [0.8, 0.2], [0.5, 0.9]]] as const;
+  it("round-trips ignore boxes and migrates only rectangular legacy zones", () => {
+    const zones = [{ x: 0.1, y: 0.2, width: 0.7, height: 0.6 }] as const;
     const query = serializeSettings({ ...DEFAULT_SETTINGS, ignoreZones: zones });
     expect(parseSettings(query).ignoreZones).toEqual(zones);
     expect(serializeOverlaySettings({ ...DEFAULT_SETTINGS, ignoreZones: zones }).has("ignore")).toBe(false);
-    query.set("ignore", JSON.stringify([...zones, [[0, 0], [1, 1], [0.5, 0.5]], [[-1, 0], [1, 0], [0, 1]]]));
-    expect(parseSettings(query).ignoreZones).toEqual(zones);
+    query.set("ignore", JSON.stringify([
+      ...zones,
+      [[0.1, 0.2], [0.8, 0.2], [0.8, 0.9], [0.1, 0.9]],
+      [[0.1, 0.2], [0.8, 0.2], [0.5, 0.9]],
+      [[0.1, 0.2], [0.8, 0.2], [0.7, 0.9], [0.1, 0.9]],
+      [[0.1, 0.2], [0.8, 0.9], [0.8, 0.2], [0.1, 0.9]],
+      [[0.1, 0.2], [0.8, 0.2], [0.8, 0.2], [0.1, 0.9]],
+      { x: -0.1, y: 0, width: 0.3, height: 0.3 },
+      { x: 0.9, y: 0, width: 0.2, height: 0.3 },
+      { x: 0, y: 0, width: 0, height: 0.3 },
+      { x: 0, y: 0, width: 0.0000005, height: 1 },
+      { x: "0", y: 0, width: 0.2, height: 0.3 },
+      null,
+    ]));
+    expect(parseSettings(query).ignoreZones).toEqual([
+      ...zones,
+      { x: 0.1, y: 0.2, width: 0.8 - 0.1, height: 0.9 - 0.2 },
+    ]);
+    query.set("ignore", '[{"x":0,"y":0,"width":1e400,"height":1}]');
+    expect(parseSettings(query).ignoreZones).toEqual([]);
     query.set("ignore", "{");
     expect(parseSettings(query).ignoreZones).toEqual([]);
+  });
+
+  it.each([
+    { ignoreArtCards: true, ignoreTokenCards: false, ignoreNonPlayableCards: false },
+    { ignoreArtCards: false, ignoreTokenCards: true, ignoreNonPlayableCards: false },
+    { ignoreArtCards: false, ignoreTokenCards: false, ignoreNonPlayableCards: true },
+    { ignoreArtCards: true, ignoreTokenCards: true, ignoreNonPlayableCards: true },
+  ])("round-trips independent ignored-card settings: %j", (ignored) => {
+    const settings = { ...DEFAULT_SETTINGS, ...ignored };
+    expect(parseSettings(serializeSettings(settings))).toEqual(settings);
+    const overlay = serializeOverlaySettings(settings);
+    expect(overlay.has("ignoreart")).toBe(false);
+    expect(overlay.has("ignoretokens")).toBe(false);
+    expect(overlay.has("ignoreunplayable")).toBe(false);
+  });
+
+  it("round-trips the scanner-only foil assumption", () => {
+    const settings = { ...DEFAULT_SETTINGS, assumeFoil: true };
+    const query = serializeSettings(settings);
+    expect(query.get("assumefoil")).toBe("1");
+    expect(parseSettings(query)).toEqual(settings);
+    expect(serializeOverlaySettings(settings).has("assumefoil")).toBe(false);
   });
 
   it("falls back or clamps on invalid values", () => {
@@ -157,6 +202,9 @@ describe("serializeSettings", () => {
       allFinishes: true,
       setCodes: ["woe", "mom"],
       query: 't:creature OR name:"Fire & Ice"',
+      ignoreArtCards: true,
+      ignoreTokenCards: true,
+      ignoreNonPlayableCards: true,
       mirror: true,
       resolution: { width: 1920, height: 1080 },
       camera: "device id/with+chars",
@@ -171,6 +219,9 @@ describe("serializeSettings", () => {
     };
     const query = serializeSettings(changed);
     expect(query.get("setcode")).toBe("woe,mom");
+    expect(query.get("ignoreart")).toBe("1");
+    expect(query.get("ignoretokens")).toBe("1");
+    expect(query.get("ignoreunplayable")).toBe("1");
     expect(query.get("finishes")).toBe("1");
     expect(query.get("details")).toBe("none");
     expect(query.get("sides")).toBe("none");

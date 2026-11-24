@@ -9,7 +9,16 @@ export interface CardInfo {
   rarity: string;
   imageUrl: string | null;
   prices: Partial<Record<Currency, string | null>>;
+  foilAvailable?: boolean;
+  assumedFoil?: boolean;
   scryfallUri: string;
+}
+
+export interface ScannedCard {
+  card: CardInfo;
+  isArtCard: boolean;
+  isTokenCard: boolean;
+  isNonPlayable: boolean;
 }
 
 export interface PriceDisplay {
@@ -72,12 +81,38 @@ export function parseCard(json: unknown): CardInfo {
     rarity: stringValue(card.rarity),
     imageUrl: typeof imageUris?.normal === "string" ? imageUris.normal : null,
     prices,
+    foilAvailable: Array.isArray(card.finishes) ? card.finishes.includes("foil") : card.foil === true,
     scryfallUri: stringValue(card.scryfall_uri),
   };
 }
 
+function parseScannedCard(json: unknown): ScannedCard {
+  const card = parseCard(json);
+  const source = asObject(json)!;
+  const isTokenLayout = (layout: unknown) => layout === "token" || layout === "double_faced_token";
+  const faces = Array.isArray(source.card_faces) ? source.card_faces : [];
+  const legalities = !Array.isArray(source.legalities) ? asObject(source.legalities) : null;
+  const statuses = legalities ? Object.values(legalities) : [];
+
+  return {
+    card,
+    isArtCard: source.layout === "art_series",
+    isTokenCard: isTokenLayout(source.layout)
+      || (source.layout === "reversible_card" && faces.length > 0
+        && faces.every((face) => isTokenLayout(asObject(face)?.layout))),
+    isNonPlayable: statuses.length > 0 && statuses.every((status) => status === "not_legal" || status === "banned"),
+  };
+}
+
+export function preferredPriceCurrency(card: CardInfo, currency: Currency): Currency {
+  if (!card.assumedFoil) return currency;
+  if (currency.startsWith("usd")) return "usd_foil";
+  if (currency.startsWith("eur")) return "eur_foil";
+  return currency;
+}
+
 export function formatPrice(card: CardInfo, currency: Currency): PriceDisplay | null {
-  for (const candidate of priceFallbacks[currency]) {
+  for (const candidate of priceFallbacks[preferredPriceCurrency(card, currency)]) {
     const price = formatExactPrice(card, candidate);
     if (price) return price;
   }
@@ -118,8 +153,8 @@ export class ScryfallClient {
   private readonly baseUrl: string;
   private readonly now: () => number;
   private readonly sleep: (ms: number) => Promise<void>;
-  private readonly cache = new Map<string, CardInfo>();
-  private readonly inFlight = new Map<string, Promise<CardInfo>>();
+  private readonly cache = new Map<string, ScannedCard>();
+  private readonly inFlight = new Map<string, Promise<ScannedCard>>();
   private requestQueue: Promise<void> = Promise.resolve();
   private nextAllowedAt = 0;
 
@@ -131,7 +166,7 @@ export class ScryfallClient {
     this.sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 
-  getCard(id: string, signal?: AbortSignal): Promise<CardInfo> {
+  getCard(id: string, signal?: AbortSignal): Promise<ScannedCard> {
     const cached = this.cache.get(id);
     if (cached) return Promise.resolve(cached);
 
@@ -205,8 +240,8 @@ export class ScryfallClient {
     }
   }
 
-  private async fetchCard(id: string, signal?: AbortSignal): Promise<CardInfo> {
-    return parseCard(await this.fetchJson(`${this.baseUrl}/cards/${encodeURIComponent(id)}`, signal));
+  private async fetchCard(id: string, signal?: AbortSignal): Promise<ScannedCard> {
+    return parseScannedCard(await this.fetchJson(`${this.baseUrl}/cards/${encodeURIComponent(id)}`, signal));
   }
 
   private async fetchJson(url: string, signal?: AbortSignal, intervalMs = this.minIntervalMs): Promise<unknown> {

@@ -108,10 +108,12 @@ function CardPrice(props: { card: CardInfo; currency: Currency; allFinishes: boo
     ? formatFinishPrices(props.card, props.currency)
     : [formatPrice(props.card, props.currency)].filter((price) => price !== null);
   const label = (currency: Currency) => {
-    if (currency === "usd") return props.allFinishes ? "nonfoil" : "";
-    if (currency === "usd_foil") return "foil";
-    if (currency === "usd_etched") return "etched";
-    return `${CURRENCY_LABELS[currency]}${props.allFinishes && currency === "eur" ? " nonfoil" : ""}`;
+    const fallback = props.card.assumedFoil && !props.allFinishes;
+    if (currency === "usd") return props.allFinishes ? "nonfoil" : fallback ? "nonfoil fallback" : "";
+    if (currency === "usd_foil") return props.card.assumedFoil ? "foil (assumed)" : "foil";
+    if (currency === "usd_etched") return fallback ? "etched fallback" : "etched";
+    if (currency === "eur" && fallback) return "EUR nonfoil fallback";
+    return `${CURRENCY_LABELS[currency]}${props.allFinishes && currency === "eur" ? " nonfoil" : ""}${props.card.assumedFoil && currency === "eur_foil" ? " (assumed)" : ""}`;
   };
   return (
     <div class="card-prices" style={textSize(props.size)}>
