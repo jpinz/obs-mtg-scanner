@@ -18,7 +18,7 @@ The **History** tab records each successfully identified printing and lets you a
 
 Under **Recognition**, the ignore options suppress art cards, token cards, or cards with no legal or restricted Scryfall format after they are recognized. The non-playable option also covers art cards and tokens; playable promotional printings remain eligible. Ignored cards are not displayed or added to history automatically. Existing history and manual additions are unaffected.
 
-To exclude part of the camera image from recognition, start the camera and select **Ignore zones**. Click at least three points around an area, then select **Save zone**. Add multiple zones or remove them individually; **Undo point** removes the last point of the current draft. Keyboard users can focus the video, move the cursor with the arrow keys (Shift for larger steps), and press Enter to add points. Zones are saved with scanner settings and apply to any selected camera; check them after changing cameras. They follow the video when mirroring or changing resolution and are not shown in OBS. The scanner masks the areas before recognition and rejects detections that overlap them.
+To exclude part of the camera image from recognition, start the camera and select **Ignore zones**. Drag on the video to draw a box, drag a box to move it, or drag its edges and corners to resize it. Add multiple zones or remove them individually. Keyboard users can select **Add zone**, then use the arrow keys to move the focused zone, Alt plus the arrow keys to resize it, Shift for larger steps, and Delete to remove it. Zones are saved with scanner settings and apply to any selected camera; check them after changing cameras. They follow the video when mirroring or changing resolution and are not shown in OBS. The scanner masks the areas before recognition and rejects detections that overlap them.
 
 When a WebSocket password is set, **Copy URL** includes it in the URL fragment (`#obsPassword=…`) so the Browser Source logs in automatically; the URL shown in the app masks it. Copy the URL again after changing the password. A fragment password takes precedence over a password saved in the Browser Source's browser profile and is not saved automatically. If the URL has no password and OBS requires one, use the Browser Source's **Interact** window to enter it. Fragments are not sent in the HTTP request to Vercel, but the password remains visible in OBS source settings; treat the copied URL as a secret.
 
@@ -54,7 +54,7 @@ The default port is omitted from the URL; changing to a custom port requires cop
 | `camera` | device ID | default camera | Specific camera to use (`MediaDeviceInfo.deviceId`) |
 | `res` | `WIDTHxHEIGHT` | `1280x720` | Requested camera resolution |
 | `mirror` | `1` / `0` | `0` | Mirror the video (recognition always uses the unmirrored frame) |
-| `ignore` | JSON array of polygons | none | Ignore zones as arrays of `[x,y]` vertices in unmirrored frame fractions (`0`–`1`); normally configured in the camera preview. |
+| `ignore` | JSON array of `{x,y,width,height}` objects | none | Ignore boxes in unmirrored frame fractions (`0`–`1`); draw, move, and resize them in the camera preview. Previously saved rectangles are migrated; non-rectangular zones are ignored. |
 | `theme` | `dark`, `light` | `dark` | Panel theme |
 | `accent` | hex color | `f59e0b` | Panel accent color |
 | `debug` | `1` / `0` | `0` | Show the detection outline, FPS, and scanner status |

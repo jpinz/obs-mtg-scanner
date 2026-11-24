@@ -95,7 +95,7 @@ describe("ScannerController", () => {
     );
     controller.start();
     await Promise.resolve();
-    const zone = [[0, 0], [1, 0], [0, 1]] as const;
+    const zone = { x: 0.1, y: 0.2, width: 0.3, height: 0.4 } as const;
     controller.setIgnoreZones([zone]);
     finish(applet);
     await controller.idle;

@@ -59,8 +59,15 @@ export interface Resolution {
   height: number;
 }
 
-/** Polygon vertices in unmirrored camera-frame coordinates, normalized to 0–1. */
-export type IgnoreZone = readonly (readonly [number, number])[];
+/** Axis-aligned box in unmirrored camera-frame coordinates, normalized to 0–1. */
+export interface IgnoreZone {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export const MIN_IGNORE_ZONE_AREA = 0.0000005;
 
 export interface OverlaySettings {
   currency: Currency;
@@ -313,20 +320,42 @@ function parseColor(value: string | null, fallback: string): string {
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex) ? hex.toLowerCase() : fallback;
 }
 
+function legacyIgnoreBox(zone: unknown): IgnoreZone | null {
+  if (!Array.isArray(zone) || zone.length !== 4
+    || !zone.every((point) => Array.isArray(point) && point.length === 2
+      && point.every((n) => typeof n === "number" && Number.isFinite(n)))) return null;
+
+  const x = Math.min(...zone.map((point) => point[0]));
+  const y = Math.min(...zone.map((point) => point[1]));
+  const right = Math.max(...zone.map((point) => point[0]));
+  const bottom = Math.max(...zone.map((point) => point[1]));
+  if (new Set(zone.map(([px, py]) => `${px},${py}`)).size !== 4
+    || !zone.every(([px, py]) => (px === x || px === right) && (py === y || py === bottom))
+    || !zone.every(([px, py], i) => {
+      const [nextX, nextY] = zone[(i + 1) % zone.length];
+      return (px === nextX) !== (py === nextY);
+    })) return null;
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+function isIgnoreBox(zone: unknown): zone is IgnoreZone {
+  if (!zone || typeof zone !== "object" || Array.isArray(zone)) return false;
+  const { x, y, width, height } = zone as IgnoreZone;
+  return [x, y, width, height].every((n) => typeof n === "number" && Number.isFinite(n))
+    && x >= 0 && y >= 0 && width > 0 && height > 0
+    && width <= 1 - x && height <= 1 - y
+    && width * height > MIN_IGNORE_ZONE_AREA;
+}
+
 function parseIgnoreZones(value: string | null): IgnoreZone[] {
   if (!value) return [];
   try {
     const zones: unknown = JSON.parse(value);
     if (!Array.isArray(zones)) return [];
-    return zones.filter((zone): zone is [number, number][] => {
-      if (!Array.isArray(zone) || zone.length < 3) return false;
-      if (!zone.every((point) => Array.isArray(point) && point.length === 2
-        && point.every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1))) return false;
-      const area = zone.reduce((sum, point, i) => {
-        const next = zone[(i + 1) % zone.length];
-        return sum + point[0] * next[1] - next[0] * point[1];
-      }, 0);
-      return Math.abs(area) > 0.000001;
+    return zones.flatMap((zone) => {
+      const box = Array.isArray(zone) ? legacyIgnoreBox(zone) : zone;
+      if (!isIgnoreBox(box)) return [];
+      return [{ x: box.x, y: box.y, width: box.width, height: box.height }];
     });
   } catch {
     return [];
