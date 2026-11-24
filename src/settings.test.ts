@@ -30,12 +30,14 @@ describe("parseSettings", () => {
       showName: false,
       showDetails: false,
       showTotal: true,
+      showHighest: false,
       details: ["set", "price", "confidence"],
       layout: {
         image: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
         name: { x: 0.3, y: 0.4, width: 0.2, height: 0.05 },
         details: { x: 0.5, y: 0.6, width: 0.25, height: 0.3 },
         total: DEFAULT_SETTINGS.layout.total,
+        highest: DEFAULT_SETTINGS.layout.highest,
       },
       textSize: 20,
       nameTextSize: 32,
@@ -96,6 +98,7 @@ describe("parseSettings", () => {
       name: DEFAULT_SETTINGS.layout.name,
       details: { x: 0.5, y: 0, width: 0.5, height: 0.02 },
       total: DEFAULT_SETTINGS.layout.total,
+      highest: DEFAULT_SETTINGS.layout.highest,
     });
   });
 
@@ -108,6 +111,15 @@ describe("parseSettings", () => {
     const query = serializeOverlaySettings(settings);
     expect(query.get("total")).toBe("0");
     expect(query.get("tpos")).toBe("0.3,0.05,0.18,0.09");
+    expect(parseSettings(query)).toEqual(settings);
+  });
+
+  it("defaults the highest value card to off and round-trips its overlay settings", () => {
+    expect(parseSettings("").showHighest).toBe(false);
+    const settings = { ...DEFAULT_SETTINGS, showHighest: true, layout: setLayoutBox(DEFAULT_SETTINGS.layout, "highest", { x: 0.3 }) };
+    const query = serializeOverlaySettings(settings);
+    expect(query.get("highest")).toBe("1");
+    expect(query.get("hpos")).toBe("0.3,0.16,0.22,0.2");
     expect(parseSettings(query)).toEqual(settings);
   });
 

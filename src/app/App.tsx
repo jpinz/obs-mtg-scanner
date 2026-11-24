@@ -48,7 +48,7 @@ import {
 } from "../settings";
 import { CardFeed, isIgnoredCard } from "./cardFeed";
 import { HistoryPanel } from "./HistoryPanel";
-import { HISTORY_STORAGE_KEY, parseHistory, removeHistoryEntries, replaceHistoryCard, summarizeHistory, type HistoryEntry } from "./history";
+import { HISTORY_STORAGE_KEY, highestValueCard, parseHistory, removeHistoryEntries, replaceHistoryCard, summarizeHistory, type HistoryEntry } from "./history";
 import { IgnoreZoneEditor } from "./IgnoreZoneEditor";
 import type { OverlaySession } from "./overlaySession";
 import { cameraConstraints, createScanner } from "./scanner";
@@ -321,6 +321,10 @@ export function App(props: { session: OverlaySession }) {
     return { type: "total", sessionId: props.session.sessionId, text, missing, count };
   }
 
+  function highestEvent(): ObsOverlayEvent {
+    return { type: "highest", sessionId: props.session.sessionId, card: highestValueCard(history(), settings.currency) };
+  }
+
   function sendEditState(on: boolean) {
     previewFrame?.contentWindow?.postMessage(toPreviewMessageData({ type: "edit", editing: on }), window.location.origin);
   }
@@ -472,7 +476,10 @@ export function App(props: { session: OverlaySession }) {
   createEffect(editing, (on) => sendEditState(on), { defer: true });
   createEffect(
     () => ({ entries: history(), currency: settings.currency }),
-    () => publish(totalEvent()),
+    () => {
+      publish(totalEvent());
+      publish(highestEvent());
+    },
     { defer: true },
   );
   createEffect(
@@ -550,6 +557,7 @@ export function App(props: { session: OverlaySession }) {
         confidence: latestConfidence,
       });
       send(totalEvent());
+      send(highestEvent());
       if (latestTracking) send(latestTracking);
     };
     const connection = new ObsWebSocketClient(
@@ -774,7 +782,7 @@ export function App(props: { session: OverlaySession }) {
             />
           )}
           <p class="preview__hint" hidden={!editing()}>
-            Drag the card picture, name, details, and total to position them on the OBS canvas.
+            Drag the enabled components to position them on the OBS canvas.
           </p>
           <p
             class={[
@@ -1039,6 +1047,7 @@ export function App(props: { session: OverlaySession }) {
                 onChange={(on) => commit("finishes", on ? "1" : "0")}
               />
               <CheckField label="Show total value" checked={settings.showTotal} onChange={(on) => commit("total", on ? "1" : "0")} />
+              <CheckField label="Show highest value card" checked={settings.showHighest} onChange={(on) => commit("highest", on ? "1" : "0")} />
               <SelectField
                 label="Theme"
                 value={settings.theme}
