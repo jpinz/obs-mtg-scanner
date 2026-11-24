@@ -102,7 +102,7 @@ describe("ScryfallClient", () => {
     expect(concurrent).toBe(first);
     await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
     completeRequest?.(response(cardJson()));
-    await expect(first).resolves.toMatchObject({ id: "card-id" });
+    await expect(first).resolves.toMatchObject({ card: { id: "card-id" } });
     await client.getCard("card-id");
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
@@ -114,8 +114,55 @@ describe("ScryfallClient", () => {
     const client = new ScryfallClient({ fetch: fetcher, minIntervalMs: 0 });
 
     await expect(client.getCard("card-id")).rejects.toThrow("status 404: Not found");
-    await expect(client.getCard("card-id")).resolves.toMatchObject({ id: "card-id" });
+    await expect(client.getCard("card-id")).resolves.toMatchObject({ card: { id: "card-id" } });
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    {
+      name: "art series",
+      data: { layout: "art_series", legalities: { vintage: "not_legal" } },
+      expected: { isArtCard: true, isTokenCard: false, isNonPlayable: true },
+    },
+    {
+      name: "token",
+      data: { layout: "token", legalities: { vintage: "not_legal" } },
+      expected: { isArtCard: false, isTokenCard: true, isNonPlayable: true },
+    },
+    {
+      name: "double-faced token",
+      data: { layout: "double_faced_token", legalities: { vintage: "not_legal" } },
+      expected: { isArtCard: false, isTokenCard: true, isNonPlayable: true },
+    },
+    {
+      name: "reversible token",
+      data: { layout: "reversible_card", card_faces: [{ layout: "token" }, { layout: "token" }] },
+      expected: { isArtCard: false, isTokenCard: true, isNonPlayable: false },
+    },
+    {
+      name: "non-playable Rule 104.3a",
+      data: { name: "Rule 104.3a", layout: "planar", promo: false, legalities: { vintage: "not_legal", commander: "banned" } },
+      expected: { isArtCard: false, isTokenCard: false, isNonPlayable: true },
+    },
+    {
+      name: "playable promo",
+      data: { layout: "normal", promo: true, legalities: { vintage: "restricted", commander: "not_legal" } },
+      expected: { isArtCard: false, isTokenCard: false, isNonPlayable: false },
+    },
+    {
+      name: "missing legality",
+      data: { layout: "normal" },
+      expected: { isArtCard: false, isTokenCard: false, isNonPlayable: false },
+    },
+    {
+      name: "unknown legality",
+      data: { layout: "normal", legalities: { vintage: "not_legal", other: "unknown" } },
+      expected: { isArtCard: false, isTokenCard: false, isNonPlayable: false },
+    },
+  ])("classifies a scanned $name without altering the display card", async ({ data, expected }) => {
+    const fetcher = vi.fn().mockResolvedValue(response(cardJson(data)));
+    const client = new ScryfallClient({ fetch: fetcher, minIntervalMs: 0 });
+    await expect(client.getCard("card-id")).resolves.toMatchObject({ card: { id: "card-id" }, ...expected });
   });
 
   it("waits between starts of distinct requests", async () => {

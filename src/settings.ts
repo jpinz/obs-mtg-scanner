@@ -88,6 +88,9 @@ export interface OverlaySettings {
   duration: number;
   /** Minimum embedding match score (0–1) before a card is accepted. */
   threshold: number;
+  ignoreArtCards: boolean;
+  ignoreTokenCards: boolean;
+  ignoreNonPlayableCards: boolean;
   setCodes: readonly string[];
   query: string;
   /** MediaDeviceInfo.deviceId; empty string selects the default camera. */
@@ -123,6 +126,9 @@ export const DEFAULT_SETTINGS: Readonly<OverlaySettings> = Object.freeze({
   followSides: Object.freeze<FollowSide[]>(["top", "bottom"]),
   duration: 8,
   threshold: 0.5,
+  ignoreArtCards: true,
+  ignoreTokenCards: true,
+  ignoreNonPlayableCards: true,
   setCodes: Object.freeze([]),
   query: "",
   camera: "",
@@ -160,6 +166,9 @@ const PARAM = {
   followSides: "sides",
   duration: "duration",
   threshold: "threshold",
+  ignoreArtCards: "ignoreart",
+  ignoreTokenCards: "ignoretokens",
+  ignoreNonPlayableCards: "ignoreunplayable",
   setCodes: "setcode",
   query: "query",
   camera: "camera",
@@ -356,6 +365,9 @@ export function parseSettings(search: string | URLSearchParams): OverlaySettings
     followSides: parseList(p.get(PARAM.followSides), FOLLOW_SIDES, d.followSides),
     duration: parseNumber(p.get(PARAM.duration), d.duration, 0, 3600),
     threshold: parseNumber(p.get(PARAM.threshold), d.threshold, 0, 1),
+    ignoreArtCards: parseBool(p.get(PARAM.ignoreArtCards), d.ignoreArtCards),
+    ignoreTokenCards: parseBool(p.get(PARAM.ignoreTokenCards), d.ignoreTokenCards),
+    ignoreNonPlayableCards: parseBool(p.get(PARAM.ignoreNonPlayableCards), d.ignoreNonPlayableCards),
     setCodes: [...new Set(p.getAll(PARAM.setCodes)
       .flatMap((value) => value.split(","))
       .map((value) => value.trim().toLowerCase())
@@ -402,6 +414,9 @@ export function serializeSettings(settings: OverlaySettings): URLSearchParams {
   set("followSides", serializeList(settings.followSides), serializeList(d.followSides));
   set("duration", String(settings.duration), String(d.duration));
   set("threshold", String(settings.threshold), String(d.threshold));
+  set("ignoreArtCards", bool(settings.ignoreArtCards), bool(d.ignoreArtCards));
+  set("ignoreTokenCards", bool(settings.ignoreTokenCards), bool(d.ignoreTokenCards));
+  set("ignoreNonPlayableCards", bool(settings.ignoreNonPlayableCards), bool(d.ignoreNonPlayableCards));
   set("setCodes", settings.setCodes.join(","), d.setCodes.join(","));
   set("query", settings.query, d.query);
   set("camera", settings.camera, d.camera);
