@@ -1,5 +1,5 @@
 import { parseOverlayState } from "../overlayState";
-import { formatPrice, type CardInfo } from "../scryfall";
+import { formatPrice, preferredPriceCurrency, type CardInfo } from "../scryfall";
 import type { Currency } from "../settings";
 
 export interface HistoryEntry {
@@ -24,6 +24,13 @@ export function parseHistory(raw: string | null): HistoryEntry[] {
   });
 }
 
+export function replaceHistoryCard(entry: HistoryEntry, card: CardInfo): HistoryEntry {
+  return {
+    ...entry,
+    card: entry.card.assumedFoil && card.foilAvailable ? { ...card, assumedFoil: true } : card,
+  };
+}
+
 export function summarizeHistory(entries: readonly HistoryEntry[], currency: Currency) {
   let cents = 0;
   let missing = 0;
@@ -34,7 +41,7 @@ export function summarizeHistory(entries: readonly HistoryEntry[], currency: Cur
       missing += 1;
     } else {
       cents += Math.round(Number(card.prices[price.currency]) * 100);
-      if (price.currency !== currency) fallback += 1;
+      if (price.currency !== preferredPriceCurrency(card, currency)) fallback += 1;
     }
   }
   const amount = (cents / 100).toFixed(2);

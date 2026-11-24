@@ -88,6 +88,7 @@ export interface OverlaySettings {
   duration: number;
   /** Minimum embedding match score (0–1) before a card is accepted. */
   threshold: number;
+  assumeFoil: boolean;
   ignoreArtCards: boolean;
   ignoreTokenCards: boolean;
   ignoreNonPlayableCards: boolean;
@@ -126,6 +127,7 @@ export const DEFAULT_SETTINGS: Readonly<OverlaySettings> = Object.freeze({
   followSides: Object.freeze<FollowSide[]>(["top", "bottom"]),
   duration: 8,
   threshold: 0.5,
+  assumeFoil: false,
   ignoreArtCards: true,
   ignoreTokenCards: true,
   ignoreNonPlayableCards: true,
@@ -166,6 +168,7 @@ const PARAM = {
   followSides: "sides",
   duration: "duration",
   threshold: "threshold",
+  assumeFoil: "assumefoil",
   ignoreArtCards: "ignoreart",
   ignoreTokenCards: "ignoretokens",
   ignoreNonPlayableCards: "ignoreunplayable",
@@ -365,6 +368,7 @@ export function parseSettings(search: string | URLSearchParams): OverlaySettings
     followSides: parseList(p.get(PARAM.followSides), FOLLOW_SIDES, d.followSides),
     duration: parseNumber(p.get(PARAM.duration), d.duration, 0, 3600),
     threshold: parseNumber(p.get(PARAM.threshold), d.threshold, 0, 1),
+    assumeFoil: parseBool(p.get(PARAM.assumeFoil), d.assumeFoil),
     ignoreArtCards: parseBool(p.get(PARAM.ignoreArtCards), d.ignoreArtCards),
     ignoreTokenCards: parseBool(p.get(PARAM.ignoreTokenCards), d.ignoreTokenCards),
     ignoreNonPlayableCards: parseBool(p.get(PARAM.ignoreNonPlayableCards), d.ignoreNonPlayableCards),
@@ -414,6 +418,7 @@ export function serializeSettings(settings: OverlaySettings): URLSearchParams {
   set("followSides", serializeList(settings.followSides), serializeList(d.followSides));
   set("duration", String(settings.duration), String(d.duration));
   set("threshold", String(settings.threshold), String(d.threshold));
+  set("assumeFoil", bool(settings.assumeFoil), bool(d.assumeFoil));
   set("ignoreArtCards", bool(settings.ignoreArtCards), bool(d.ignoreArtCards));
   set("ignoreTokenCards", bool(settings.ignoreTokenCards), bool(d.ignoreTokenCards));
   set("ignoreNonPlayableCards", bool(settings.ignoreNonPlayableCards), bool(d.ignoreNonPlayableCards));

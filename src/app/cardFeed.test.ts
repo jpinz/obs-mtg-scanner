@@ -28,6 +28,7 @@ describe("CardFeed", () => {
         lookup: (_id, signal) =>
           new Promise((resolve) => requests.push({ signal, resolve })),
         shouldIgnore: () => false,
+        assumeFoil: () => false,
         publish,
         onNewCard: vi.fn(),
         onError: vi.fn(),
@@ -52,6 +53,7 @@ describe("CardFeed", () => {
       {
         lookup: vi.fn(async () => scanned()),
         shouldIgnore: () => false,
+        assumeFoil: () => false,
         publish,
         onNewCard: vi.fn(),
         onError: vi.fn(),
@@ -84,6 +86,43 @@ describe("CardFeed", () => {
     expect(isIgnoredCard(scanned(), noLegalFormat)).toBe(false);
   });
 
+  it("records the foil assumption at scan time only when the printing has foil", async () => {
+    let assumeFoil = true;
+    let finish!: (value: ScannedCard) => void;
+    const foilCard = { ...card, foilAvailable: true };
+    const nonfoilCard = { ...card, id: "nonfoil", foilAvailable: false };
+    const lookup = vi.fn()
+      .mockImplementationOnce(() => new Promise<ScannedCard>((resolve) => { finish = resolve; }))
+      .mockResolvedValueOnce(scanned({ card: foilCard }))
+      .mockResolvedValueOnce(scanned({ card: nonfoilCard }));
+    const publish = vi.fn();
+    const onNewCard = vi.fn();
+    const feed = new CardFeed({
+      lookup,
+      shouldIgnore: () => false,
+      assumeFoil: () => assumeFoil,
+      publish,
+      onNewCard,
+      onError: vi.fn(),
+    }, 1000);
+
+    const pending = feed.detected(foilCard.id, 0, 0.9);
+    assumeFoil = false;
+    finish(scanned({ card: foilCard }));
+    await pending;
+    expect(publish).toHaveBeenLastCalledWith({ ...foilCard, assumedFoil: true }, 0.9);
+    expect(onNewCard).toHaveBeenLastCalledWith({ ...foilCard, assumedFoil: true });
+    expect(foilCard).not.toHaveProperty("assumedFoil");
+
+    feed.clear();
+    await feed.detected(foilCard.id, 1);
+    expect(onNewCard).toHaveBeenLastCalledWith(foilCard);
+
+    assumeFoil = true;
+    await feed.detected(nonfoilCard.id, 2);
+    expect(onNewCard).toHaveBeenLastCalledWith(nonfoilCard);
+  });
+
   it("suppresses ignored cards from the overlay, tracking, and automatic history", async () => {
     const settings = {
       ...DEFAULT_SETTINGS,
@@ -107,6 +146,7 @@ describe("CardFeed", () => {
     const feed = new CardFeed({
       lookup: (id, signal) => client.getCard(id, signal),
       shouldIgnore: (result) => isIgnoredCard(result, settings),
+      assumeFoil: () => false,
       publish,
       onNewCard,
       onError: vi.fn(),
@@ -133,6 +173,7 @@ describe("CardFeed", () => {
     const feed = new CardFeed({
       lookup: async () => art,
       shouldIgnore: (result) => isIgnoredCard(result, settings),
+      assumeFoil: () => false,
       publish,
       onNewCard,
       onError: vi.fn(),
@@ -166,6 +207,7 @@ describe("CardFeed", () => {
     const feed = new CardFeed({
       lookup: () => new Promise((resolve) => { finish = resolve; }),
       shouldIgnore: (result) => isIgnoredCard(result, settings),
+      assumeFoil: () => false,
       publish,
       onNewCard,
       onError: vi.fn(),

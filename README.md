@@ -16,6 +16,8 @@ The app also previews the same overlay over its camera feed. If another app (inc
 
 The **History** tab records each successfully identified printing and lets you add a printing by card name, replace an entry with another printing, or remove it. History is saved in this browser; repeated detections of the same card while its panel remains active count once. The total overlay sums the selected price for each entry, using the same finish fallback as the card panel. It excludes entries without a price and marks them as unpriced; prices are saved at lookup time and are not refreshed automatically. Change the price setting to switch currency or finish. Turn off **Show total value** or use **Edit layout** to move and resize the total.
 
+Enable **Assume scanned cards are foil when available** under **Recognition** to treat new scans as foil when the identified printing has a foil finish. Their saved history entries and overlay prefer USD or EUR foil prices, falling back to another finish when necessary. Existing entries and manually added cards are unchanged.
+
 Under **Recognition**, the ignore options suppress art cards, token cards, or cards with no legal or restricted Scryfall format after they are recognized. The non-playable option also covers art cards and tokens; playable promotional printings remain eligible. Ignored cards are not displayed or added to history automatically. Existing history and manual additions are unaffected.
 
 To exclude part of the camera image from recognition, start the camera and select **Ignore zones**. Click at least three points around an area, then select **Save zone**. Add multiple zones or remove them individually; **Undo point** removes the last point of the current draft. Keyboard users can focus the video, move the cursor with the arrow keys (Shift for larger steps), and press Enter to add points. Zones are saved with scanner settings and apply to any selected camera; check them after changing cameras. They follow the video when mirroring or changing resolution and are not shown in OBS. The scanner masks the areas before recognition and rejects detections that overlap them.
@@ -46,6 +48,7 @@ The default port is omitted from the URL; changing to a custom port requires cop
 | `sides` | comma-separated `top`, `bottom`, `left`, `right`, or `none` | `top,bottom` | Sides of the card the follow panel may use; it picks the allowed side with the most room |
 | `duration` | seconds | `8` | How long the panel stays after the card leaves the frame (`0` = until the next card) |
 | `threshold` | `0`–`1` | `0.5` | Minimum match score |
+| `assumefoil` | `1` / `0` | `0` | Treat new scans as foil if the identified printing has a foil finish. |
 | `ignoreart` | `1` / `0` | `0` | Suppress recognized art series cards. |
 | `ignoretokens` | `1` / `0` | `0` | Suppress recognized token cards. |
 | `ignoreunplayable` | `1` / `0` | `0` | Suppress cards with no legal or restricted Scryfall format, including art cards and tokens. |
