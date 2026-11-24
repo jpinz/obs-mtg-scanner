@@ -1,5 +1,6 @@
 import { parseOverlayState } from "./overlayState";
 import type { CardInfo } from "./scryfall";
+import { isCelebrationSound } from "./celebration";
 
 export interface ObsConnectionSettings {
   port: number;
@@ -39,7 +40,15 @@ export interface TotalUpdate {
   count: number;
 }
 
-export type ObsOverlayEvent = CardTracking | CardUpdate | OverlayReady | SettingsUpdate | TotalUpdate;
+export interface CelebrationEvent {
+  type: "celebration";
+  sessionId: string;
+  id: string;
+  /** null selects the bundled tada; a party-horn identifier or custom audio selects another sound. */
+  sound: string | null;
+}
+
+export type ObsOverlayEvent = CardTracking | CardUpdate | OverlayReady | SettingsUpdate | TotalUpdate | CelebrationEvent;
 
 export type ObsConnectionStatus =
   | { state: "connecting" }
@@ -72,6 +81,12 @@ export function parseObsOverlayEvent(value: unknown): ObsOverlayEvent | null {
 
   if (value.type === "ready") {
     return { type: "ready", sessionId: value.sessionId };
+  }
+
+  if (value.type === "celebration") {
+    if (typeof value.id !== "string" || value.id.length === 0 || value.id.length > 64
+      || (value.sound !== null && !isCelebrationSound(value.sound))) return null;
+    return { type: "celebration", sessionId: value.sessionId, id: value.id, sound: value.sound };
   }
 
   if (value.type === "settings") {

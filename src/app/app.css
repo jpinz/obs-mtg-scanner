@@ -35,6 +35,29 @@ select {
   font: inherit;
 }
 
+.celebration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.celebration-actions a {
+  color: var(--focus);
+  font-size: 0.8rem;
+  text-underline-offset: 0.2em;
+}
+
+.celebration-actions .button[hidden] {
+  display: none;
+}
+
+.controls input[type="file"] {
+  max-width: 100%;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
 .topbar {
   display: flex;
   align-items: center;
