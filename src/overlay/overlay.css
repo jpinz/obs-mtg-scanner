@@ -137,6 +137,48 @@ body,
   color: var(--panel-muted);
 }
 
+.pinned--highest .surface {
+  font-size: inherit;
+}
+
+.highest-value {
+  display: flex;
+  gap: 0.75em;
+  min-height: 0;
+  height: 100%;
+}
+
+.highest-value__image {
+  flex: 0 1 auto;
+  height: 100%;
+  max-width: 45%;
+  aspect-ratio: 488 / 680;
+}
+
+.highest-value__image .card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.highest-value__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4em;
+  min-width: 0;
+}
+
+.highest-value__body > span {
+  color: var(--panel-muted);
+}
+
+.highest-value__body > strong {
+  color: var(--accent);
+  font-size: 1.3em;
+  font-variant-numeric: tabular-nums;
+}
+
 .pinned {
   position: absolute;
   opacity: 0;

@@ -33,6 +33,16 @@ describe("OBS connection URL settings", () => {
       expect(parseObsOverlayEvent({ ...event, missing: 4 })).toBeNull();
       expect(parseObsOverlayEvent({ ...event, count: -1 })).toBeNull();
     });
+    it("validates highest value card updates and empty batches", () => {
+      const event = { source: "obs-mtg-scanner", type: "highest", sessionId: "session", card: null };
+      expect(parseObsOverlayEvent(event)).toEqual({ type: "highest", sessionId: "session", card: null });
+      expect(parseObsOverlayEvent({ ...event, card: { id: "bad" } })).toBeNull();
+      const card = {
+        id: "card-id", name: "Card", setName: "Set", setCode: "SET", collectorNumber: "1",
+        rarity: "rare", imageUrl: null, prices: { usd: "5.00" }, scryfallUri: "https://scryfall.com/card/set/1",
+      };
+      expect(parseObsOverlayEvent({ ...event, card })).toEqual({ type: "highest", sessionId: "session", card });
+    });
     it("parses confidence scores and treats legacy events without a score as unavailable", () => {
       const card = {
         id: "card-id",

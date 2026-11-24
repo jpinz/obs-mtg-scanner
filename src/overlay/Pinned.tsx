@@ -9,6 +9,7 @@ const LABELS: Record<LayoutItem, string> = {
   name: "Name",
   details: "Details",
   total: "Total value",
+  highest: "Highest value card",
 };
 
 export const HANDLE_CURSORS: Record<ResizeHandle, string> = {

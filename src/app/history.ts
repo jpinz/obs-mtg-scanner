@@ -36,6 +36,21 @@ export function removeHistoryEntries(entries: readonly HistoryEntry[], ids: read
   return entries.filter((entry) => !removed.has(entry.id));
 }
 
+export function highestValueCard(entries: readonly HistoryEntry[], currency: Currency): CardInfo | null {
+  let highest: CardInfo | null = null;
+  let highestAmount = -Infinity;
+  for (const { card } of entries) {
+    const price = formatPrice(card, currency);
+    if (!price) continue;
+    const amount = Number(card.prices[price.currency]);
+    if (amount >= 0 && amount > highestAmount) {
+      highest = card;
+      highestAmount = amount;
+    }
+  }
+  return highest;
+}
+
 export function summarizeHistory(entries: readonly HistoryEntry[], currency: Currency) {
   let cents = 0;
   let missing = 0;

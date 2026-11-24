@@ -10,7 +10,7 @@ export const CURRENCY_LABELS: Record<Currency, string> = {
   tix: "MTGO",
 };
 
-export const LAYOUT_ITEMS = ["image", "name", "details", "total"] as const;
+export const LAYOUT_ITEMS = ["image", "name", "details", "total", "highest"] as const;
 export type LayoutItem = (typeof LAYOUT_ITEMS)[number];
 
 /** Top-left corner of a pinned component as a fraction (0–1) of the overlay canvas. */
@@ -79,6 +79,7 @@ export interface OverlaySettings {
   showName: boolean;
   showDetails: boolean;
   showTotal: boolean;
+  showHighest: boolean;
   details: readonly DetailField[];
   layout: OverlayLayout;
   /** Base text size in canvas px for every overlay component. */
@@ -124,12 +125,14 @@ export const DEFAULT_SETTINGS: Readonly<OverlaySettings> = Object.freeze({
   showName: true,
   showDetails: true,
   showTotal: true,
+  showHighest: false,
   details: Object.freeze<DetailField[]>([...DETAIL_FIELDS]),
   layout: Object.freeze({
     image: Object.freeze({ x: 0.8, y: 0.06, ...imageSizeFor(300) }),
     name: Object.freeze({ x: 0.8, y: 0.47, width: 0.18, height: 0.05 }),
     details: Object.freeze({ x: 0.8, y: 0.53, width: 0.18, height: 0.2 }),
     total: Object.freeze({ x: 0.02, y: 0.05, width: 0.18, height: 0.09 }),
+    highest: Object.freeze({ x: 0.02, y: 0.16, width: 0.22, height: 0.2 }),
   }),
   textSize: 16,
   nameTextSize: null,
@@ -174,6 +177,7 @@ const PARAM = {
   showName: "name",
   showDetails: "info",
   showTotal: "total",
+  showHighest: "highest",
   details: "details",
   textSize: "ts",
   nameTextSize: "nts",
@@ -212,6 +216,7 @@ const LAYOUT_PARAM = {
   name: "npos",
   details: "dpos",
   total: "tpos",
+  highest: "hpos",
 } as const satisfies Record<LayoutItem, string>;
 
 const EMPTY_LIST = "none";
@@ -393,12 +398,14 @@ export function parseSettings(search: string | URLSearchParams): OverlaySettings
     showName: parseBool(p.get(PARAM.showName), d.showName),
     showDetails: parseBool(p.get(PARAM.showDetails), d.showDetails),
     showTotal: parseBool(p.get(PARAM.showTotal), d.showTotal),
+    showHighest: parseBool(p.get(PARAM.showHighest), d.showHighest),
     details: parseList(p.get(PARAM.details), DETAIL_FIELDS, d.details),
     layout: {
       image: parseLayoutBox(p.get(LAYOUT_PARAM.image), imageFallback),
       name: parseLayoutBox(p.get(LAYOUT_PARAM.name), d.layout.name),
       details: parseLayoutBox(p.get(LAYOUT_PARAM.details), d.layout.details),
       total: parseLayoutBox(p.get(LAYOUT_PARAM.total), d.layout.total),
+      highest: parseLayoutBox(p.get(LAYOUT_PARAM.highest), d.layout.highest),
     },
     textSize: parseTextSize(p.get(PARAM.textSize), textSizeFallback),
     nameTextSize: parseOptionalTextSize(p.get(PARAM.nameTextSize)),
@@ -447,6 +454,7 @@ export function serializeSettings(settings: OverlaySettings): URLSearchParams {
   set("showName", bool(settings.showName), bool(d.showName));
   set("showDetails", bool(settings.showDetails), bool(d.showDetails));
   set("showTotal", bool(settings.showTotal), bool(d.showTotal));
+  set("showHighest", bool(settings.showHighest), bool(d.showHighest));
   set("details", serializeList(settings.details), serializeList(d.details));
   for (const item of LAYOUT_ITEMS) {
     const value = serializeLayoutBox(settings.layout[item]);
@@ -489,6 +497,7 @@ const OVERLAY_KEYS = [
   "showName",
   "showDetails",
   "showTotal",
+  "showHighest",
   "details",
   "layout",
   "textSize",

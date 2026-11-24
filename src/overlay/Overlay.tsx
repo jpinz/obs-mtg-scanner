@@ -8,7 +8,7 @@ import {
   type CelebrationEvent,
 } from "../obsWebSocket";
 import { parsePreviewMessage, toPreviewMessageData } from "../previewMessages";
-import type { CardInfo } from "../scryfall";
+import { formatPrice, type CardInfo } from "../scryfall";
 import { LAYOUT_ITEMS, parseSettings, type LayoutBox, type LayoutItem, type OverlaySettings } from "../settings";
 import { moveLayoutBox, resizeLayoutBox, sameLayoutBox, type Point } from "./dragPosition";
 import { FollowPanel } from "./FollowPanel";
@@ -46,6 +46,7 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
   const [celebration, setCelebration] = createSignal<CelebrationEvent | null>(null);
   const [confidence, setConfidence] = createSignal<number | null>(null);
   const [total, setTotal] = createSignal({ text: "$0.00", missing: 0, count: 0 });
+  const [highest, setHighest] = createSignal<CardInfo | null>(null);
   const [cardId, setCardId] = createSignal<string | null>(null);
   const [corners, setCorners] = createSignal<readonly [number, number][] | null>(null);
   const [tracking, setTracking] = createSignal(false);
@@ -201,6 +202,10 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
         setTotal({ text: event.text, missing: event.missing, count: event.count });
         return;
       }
+      if (event.type === "highest") {
+        setHighest(event.card);
+        return;
+      }
       if (event.type === "card") {
         setCard(event.card);
         setConfidence(event.confidence);
@@ -256,6 +261,7 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
   });
 
   const displayCard = createMemo(() => card() ?? (editing() ? SAMPLE_CARD : null));
+  const displayHighest = createMemo(() => highest() ?? (editing() ? SAMPLE_CARD : null));
   const withImage = createMemo(() => settings().showImage);
   const { shown, visible } = useShownCard(displayCard, withImage);
   const box = (item: LayoutItem) => overrides()[item] ?? settings().layout[item];
@@ -312,6 +318,23 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
             <strong>{total().text}</strong>
             <Show when={total().missing > 0}><small>{total().missing} unpriced</small></Show>
           </div>
+        </Pinned>
+      </Show>
+      <Show when={settings().showHighest}>
+        <Pinned item="highest" box={box("highest")} canvas={canvas()} fontSize={settings().textSize}
+          visible={displayHighest() !== null} editing={editing()} dragging={dragMode("highest")} {...pinnedProps}>
+          <Show when={displayHighest()}>
+            {(current) => (
+              <div class="highest-value">
+                <div class="highest-value__image"><CardImage card={current()} placeholder /></div>
+                <div class="highest-value__body">
+                  <span>Highest value card</span>
+                  <CardName card={current()} />
+                  <strong>{formatPrice(current(), settings().currency)?.text ?? "No price data"}</strong>
+                </div>
+              </div>
+            )}
+          </Show>
         </Pinned>
       </Show>
       <Show when={settings().showName}>

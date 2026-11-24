@@ -40,6 +40,12 @@ export interface TotalUpdate {
   count: number;
 }
 
+export interface HighestUpdate {
+  type: "highest";
+  sessionId: string;
+  card: CardInfo | null;
+}
+
 export interface CelebrationEvent {
   type: "celebration";
   sessionId: string;
@@ -48,7 +54,7 @@ export interface CelebrationEvent {
   sound: string | null;
 }
 
-export type ObsOverlayEvent = CardTracking | CardUpdate | OverlayReady | SettingsUpdate | TotalUpdate | CelebrationEvent;
+export type ObsOverlayEvent = CardTracking | CardUpdate | OverlayReady | SettingsUpdate | TotalUpdate | HighestUpdate | CelebrationEvent;
 
 export type ObsConnectionStatus =
   | { state: "connecting" }
@@ -99,6 +105,11 @@ export function parseObsOverlayEvent(value: unknown): ObsOverlayEvent | null {
       || !Number.isSafeInteger(value.missing) || !Number.isSafeInteger(value.count)
       || (value.missing as number) < 0 || (value.count as number) < (value.missing as number)) return null;
     return { type: "total", sessionId: value.sessionId, text: value.text, missing: value.missing as number, count: value.count as number };
+  }
+
+  if (value.type === "highest") {
+    const state = parseOverlayState({ card: value.card, confidence: null });
+    return state ? { type: "highest", sessionId: value.sessionId, card: state.card } : null;
   }
 
   if (value.type === "tracking") {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CardInfo } from "../scryfall";
-import { parseHistory, removeHistoryEntries, replaceHistoryCard, summarizeHistory, type HistoryEntry } from "./history";
+import { highestValueCard, parseHistory, removeHistoryEntries, replaceHistoryCard, summarizeHistory, type HistoryEntry } from "./history";
 
 const card: CardInfo = {
   id: "one", name: "Card", setName: "Set", setCode: "SET", collectorNumber: "1",
@@ -54,5 +54,16 @@ describe("card history", () => {
     expect(summarizeHistory([normal, foil], "usd")).toEqual({ text: "$6.00", count: 2, missing: 0, fallback: 0 });
     expect(summarizeHistory([normal, foil], "eur")).toEqual({ text: "€4.00", count: 2, missing: 0, fallback: 1 });
     expect(summarizeHistory([normal, foil], "tix")).toEqual({ text: "0.20 TIX", count: 2, missing: 0, fallback: 0 });
+  });
+
+  it("selects the highest priced card using the selected currency and assumed finish", () => {
+    const normal = { ...entry, card: { ...card, prices: { usd: "3.00", eur: "8.00" } } };
+    const foil = { ...entry, id: "foil", card: { ...card, id: "foil", assumedFoil: true, prices: { usd: "1.00", usd_foil: "5.00", eur: "2.00" } } };
+    const missing = { ...entry, id: "missing", card: { ...card, prices: { usd: "invalid" } } };
+    expect(highestValueCard([missing, normal, foil], "usd")).toEqual(foil.card);
+    expect(highestValueCard([missing, normal, foil], "eur")).toEqual(normal.card);
+    expect(highestValueCard([missing], "usd")).toBeNull();
+    expect(highestValueCard([], "usd")).toBeNull();
+    expect(highestValueCard([normal, foil], "tix")).toBeNull();
   });
 });
