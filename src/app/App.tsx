@@ -33,7 +33,7 @@ import {
   type LayoutItem,
   type OverlaySettings,
 } from "../settings";
-import { CardFeed } from "./cardFeed";
+import { CardFeed, isIgnoredCard } from "./cardFeed";
 import { HistoryPanel } from "./HistoryPanel";
 import { HISTORY_STORAGE_KEY, parseHistory, removeHistoryEntries, summarizeHistory, type HistoryEntry } from "./history";
 import { IgnoreZoneEditor } from "./IgnoreZoneEditor";
@@ -371,6 +371,11 @@ export function App(props: { session: OverlaySession }) {
   );
   createEffect(() => settings.threshold, (threshold) => scanner?.setThreshold(threshold), { defer: true });
   createEffect(
+    () => [settings.ignoreArtCards, settings.ignoreTokenCards, settings.ignoreNonPlayableCards],
+    () => feed?.refreshIgnoreRules(),
+    { defer: true },
+  );
+  createEffect(
     () => JSON.stringify(settings.ignoreZones),
     () => {
       feed?.clear();
@@ -510,14 +515,14 @@ export function App(props: { session: OverlaySession }) {
     const cardFeed = new CardFeed(
       {
         lookup: (cardId, signal) => scryfall.getCard(cardId, signal),
-        publish: (card, confidence, seenAt) => {
+        shouldIgnore: (card) => isIgnoredCard(card, settings),
+        publish: (card, confidence) => {
           latestCard = card;
           latestConfidence = card ? confidence : null;
           if (!card) latestTracking = null;
-          else setLookupError(null);
           publish({ type: "card", sessionId: props.session.sessionId, card, confidence: latestConfidence });
-          if (card) addToHistory(card, seenAt);
         },
+        onNewCard: addToHistory,
         onError: setLookupError,
       },
       settings.duration * 1000,
@@ -837,6 +842,25 @@ export function App(props: { session: OverlaySession }) {
                   onChange={(event) => commit("query", event.currentTarget.value)}
                 />
               </label>
+              <fieldset class="subgroup check-list">
+                <legend>Ignore recognized cards</legend>
+                <CheckField
+                  label="Ignore art cards"
+                  checked={settings.ignoreArtCards}
+                  onChange={(on) => commit("ignoreart", on ? "1" : "0")}
+                />
+                <CheckField
+                  label="Ignore token cards"
+                  checked={settings.ignoreTokenCards}
+                  onChange={(on) => commit("ignoretokens", on ? "1" : "0")}
+                />
+                <CheckField
+                  label="Ignore non-playable cards"
+                  checked={settings.ignoreNonPlayableCards}
+                  onChange={(on) => commit("ignoreunplayable", on ? "1" : "0")}
+                />
+                <p class="help">Cards with no legal or restricted Scryfall format include art cards and tokens. Ignored cards are not shown or added to history automatically.</p>
+              </fieldset>
             </fieldset>
           </div>
 
