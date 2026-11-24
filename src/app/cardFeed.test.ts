@@ -23,13 +23,14 @@ describe("CardFeed", () => {
   it("aborts stale lookups and only publishes the latest detected card", async () => {
     const requests: { signal: AbortSignal; resolve(card: ScannedCard): void }[] = [];
     const publish = vi.fn();
+    const onNewCard = vi.fn();
     const feed = new CardFeed(
       {
         lookup: (_id, signal) =>
           new Promise((resolve) => requests.push({ signal, resolve })),
         shouldIgnore: () => false,
         publish,
-        onNewCard: vi.fn(),
+        onNewCard,
         onError: vi.fn(),
       },
       1000,
@@ -44,6 +45,36 @@ describe("CardFeed", () => {
     expect(requests[0].signal.aborted).toBe(true);
     expect(publish).toHaveBeenCalledTimes(1);
     expect(publish).toHaveBeenCalledWith({ ...card, id: "second" }, 0.91);
+    expect(onNewCard).toHaveBeenCalledOnce();
+    expect(onNewCard).toHaveBeenCalledWith({ ...card, id: "second" }, expect.any(String));
+  });
+
+  it("preserves the detection time when card lookup finishes later", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      let finishLookup!: (value: ScannedCard) => void;
+      const onNewCard = vi.fn();
+      const feed = new CardFeed(
+        {
+          lookup: () => new Promise((resolve) => { finishLookup = resolve; }),
+          shouldIgnore: () => false,
+          publish: vi.fn(),
+          onNewCard,
+          onError: vi.fn(),
+        },
+        1000,
+      );
+
+      const detected = feed.detected(card.id, 0, 0.8);
+      vi.setSystemTime(new Date("2026-01-01T00:01:00.000Z"));
+      finishLookup(scanned());
+      await detected;
+
+      expect(onNewCard).toHaveBeenCalledWith(card, "2026-01-01T00:00:00.000Z");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("hides the panel once the absent-card duration elapses", async () => {
@@ -71,9 +102,10 @@ describe("CardFeed", () => {
     const art = scanned({ isArtCard: true, isNonPlayable: true });
     const token = scanned({ isTokenCard: true, isNonPlayable: true });
     const nonPlayable = scanned({ isNonPlayable: true });
-    const artOnly = { ...DEFAULT_SETTINGS, ignoreArtCards: true };
-    const tokensOnly = { ...DEFAULT_SETTINGS, ignoreTokenCards: true };
-    const noLegalFormat = { ...DEFAULT_SETTINGS, ignoreNonPlayableCards: true };
+    const none = { ignoreArtCards: false, ignoreTokenCards: false, ignoreNonPlayableCards: false };
+    const artOnly = { ...none, ignoreArtCards: true };
+    const tokensOnly = { ...none, ignoreTokenCards: true };
+    const noLegalFormat = { ...none, ignoreNonPlayableCards: true };
 
     expect(isIgnoredCard(art, artOnly)).toBe(true);
     expect(isIgnoredCard(token, artOnly)).toBe(false);
@@ -121,12 +153,12 @@ describe("CardFeed", () => {
 
     expect(publish.mock.calls).toEqual([[expect.objectContaining({ id: "normal", name: "Playable promo" }), 0.9], [null, null]]);
     expect(onNewCard).toHaveBeenCalledTimes(1);
-    expect(onNewCard).toHaveBeenCalledWith(expect.objectContaining({ id: "normal", name: "Playable promo" }));
+    expect(onNewCard).toHaveBeenCalledWith(expect.objectContaining({ id: "normal", name: "Playable promo" }), expect.any(String));
     expect(feed.cardId).toBeNull();
   });
 
   it("applies changed ignore settings immediately without duplicating history", async () => {
-    const settings = { ...DEFAULT_SETTINGS, ignoreArtCards: true };
+    const settings = { ...DEFAULT_SETTINGS, ignoreArtCards: true, ignoreNonPlayableCards: false };
     const art = scanned({ isArtCard: true, isNonPlayable: true });
     const publish = vi.fn();
     const onNewCard = vi.fn();
@@ -156,6 +188,33 @@ describe("CardFeed", () => {
     feed.refreshIgnoreRules();
     expect(publish).toHaveBeenLastCalledWith(card, 0.8);
     expect(onNewCard).toHaveBeenCalledOnce();
+  });
+
+  it("preserves the detection time when an ignored card becomes visible", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      let ignored = true;
+      const onNewCard = vi.fn();
+      const feed = new CardFeed({
+        lookup: async () => scanned(),
+        shouldIgnore: () => ignored,
+        publish: vi.fn(),
+        onNewCard,
+        onError: vi.fn(),
+      }, 1000);
+
+      await feed.detected(card.id, 0);
+      expect(onNewCard).not.toHaveBeenCalled();
+      vi.setSystemTime(new Date("2026-01-01T00:01:00.000Z"));
+      ignored = false;
+      feed.refreshIgnoreRules();
+
+      expect(onNewCard).toHaveBeenCalledOnce();
+      expect(onNewCard).toHaveBeenCalledWith(card, "2026-01-01T00:00:00.000Z");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("uses the latest ignore settings when a lookup finishes", async () => {

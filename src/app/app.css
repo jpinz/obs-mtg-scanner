@@ -526,6 +526,41 @@ select {
   font-size: 0.85rem;
 }
 
+.history__bulk {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.history__select-all,
+.history-list__select {
+  display: flex;
+  gap: 0.6rem;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.history__select-all {
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.history__select-all input,
+.history-list__select input {
+  flex: 0 0 1.1rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.history__bulk-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .history-search {
   display: grid;
   gap: 0.75rem;
@@ -579,7 +614,16 @@ select {
   overflow-wrap: anywhere;
 }
 
+.history-list__select {
+  align-items: start;
+}
+
+.history-list__select input {
+  margin-top: 0.1rem;
+}
+
 .history-list__card span,
+.history-list__card time,
 .history-results span {
   color: var(--muted);
   font-size: 0.78rem;
@@ -588,7 +632,7 @@ select {
 .history-list__actions {
   display: flex;
   gap: 0.5rem;
-  margin-top: 0.65rem;
+  margin: 0.65rem 0 0 1.7rem;
 }
 
 .history-results button {

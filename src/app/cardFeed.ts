@@ -15,13 +15,14 @@ export interface CardFeedDeps {
   shouldIgnore(card: ScannedCard): boolean;
   /** Publishes card state to the overlay; `null` hides the panel. */
   publish(card: CardInfo | null, confidence: number | null): void;
-  onNewCard(card: CardInfo): void;
+  onNewCard(card: CardInfo, seenAt: string): void;
   onError(message: string | null): void;
 }
 
 interface ResolvedCard {
   result: ScannedCard;
   confidence: number | null;
+  seenAt: string;
   recorded: boolean;
 }
 
@@ -55,6 +56,7 @@ export class CardFeed {
 
   async detected(cardId: string, now: number, confidence: number | null = null): Promise<void> {
     if (!this.presence.show(cardId, now)) return;
+    const seenAt = new Date().toISOString();
     this.lookup?.abort();
     this.current = null;
     const controller = new AbortController();
@@ -63,7 +65,7 @@ export class CardFeed {
       const result = await this.deps.lookup(cardId, controller.signal);
       if (controller.signal.aborted || this.presence.cardId !== cardId) return;
       this.deps.onError(null);
-      this.current = { result, confidence, recorded: false };
+      this.current = { result, confidence, seenAt, recorded: false };
       this.refreshIgnoreRules();
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -90,7 +92,7 @@ export class CardFeed {
         current.recorded = true;
         this.displayed = current;
         this.deps.publish(current.result.card, current.confidence);
-        if (isNew) this.deps.onNewCard(current.result.card);
+        if (isNew) this.deps.onNewCard(current.result.card, current.seenAt);
       }
     } else if (this.displayed && this.deps.shouldIgnore(this.displayed.result)) {
       this.displayed = null;

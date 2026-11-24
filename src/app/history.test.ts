@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CardInfo } from "../scryfall";
-import { parseHistory, summarizeHistory, type HistoryEntry } from "./history";
+import { parseHistory, removeHistoryEntries, summarizeHistory, type HistoryEntry } from "./history";
 
 const card: CardInfo = {
   id: "one", name: "Card", setName: "Set", setCode: "SET", collectorNumber: "1",
@@ -14,6 +14,16 @@ describe("card history", () => {
     expect(parseHistory(JSON.stringify([entry]))).toEqual([entry]);
     expect(parseHistory(null)).toEqual([]);
     expect(() => parseHistory(JSON.stringify([{ ...entry, card: null }]))).toThrow();
+  });
+
+  it("removes selected occurrences without deleting duplicate printings", () => {
+    const duplicate = { ...entry, id: "duplicate" };
+    const other = { ...entry, id: "other", card: { ...card, id: "other-card" } };
+    const entries = [entry, duplicate, other];
+
+    expect(removeHistoryEntries(entries, [entry.id, other.id])).toEqual([duplicate]);
+    expect(removeHistoryEntries(entries, [])).toEqual(entries);
+    expect(removeHistoryEntries(entries, entries.map(({ id }) => id))).toEqual([]);
   });
 
   it("counts duplicate printings, finish fallback and unpriced entries without mixing currencies", () => {
