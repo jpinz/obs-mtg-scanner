@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CardInfo } from "../scryfall";
-import { parseHistory, removeHistoryEntries, summarizeHistory, type HistoryEntry } from "./history";
+import { parseHistory, removeHistoryEntries, replaceHistoryCard, summarizeHistory, type HistoryEntry } from "./history";
 
 const card: CardInfo = {
   id: "one", name: "Card", setName: "Set", setCode: "SET", collectorNumber: "1",
@@ -14,6 +14,20 @@ describe("card history", () => {
     expect(parseHistory(JSON.stringify([entry]))).toEqual([entry]);
     expect(parseHistory(null)).toEqual([]);
     expect(() => parseHistory(JSON.stringify([{ ...entry, card: null }]))).toThrow();
+  });
+
+  it("preserves assumed foil metadata in saved history", () => {
+    const foil = { ...entry, card: { ...card, foilAvailable: true, assumedFoil: true } };
+    expect(parseHistory(JSON.stringify([foil]))).toEqual([foil]);
+    expect(() => parseHistory(JSON.stringify([{ ...foil, card: { ...foil.card, assumedFoil: "yes" } }]))).toThrow();
+  });
+
+  it("retains a scan's foil assumption when replacing it with a foil-capable printing", () => {
+    const foil = { ...entry, card: { ...card, foilAvailable: true, assumedFoil: true } };
+    const replacement = { ...card, id: "replacement", foilAvailable: true };
+    expect(replaceHistoryCard(foil, replacement).card).toEqual({ ...replacement, assumedFoil: true });
+    expect(replaceHistoryCard(foil, { ...replacement, foilAvailable: false }).card.assumedFoil).toBeUndefined();
+    expect(replaceHistoryCard(entry, replacement).card.assumedFoil).toBeUndefined();
   });
 
   it("removes selected occurrences without deleting duplicate printings", () => {
@@ -31,5 +45,14 @@ describe("card history", () => {
     expect(summarizeHistory(entries, "usd")).toEqual({ text: "$2.50", count: 3, missing: 1, fallback: 0 });
     expect(summarizeHistory(entries, "eur")).toEqual({ text: "€5.00", count: 3, missing: 1, fallback: 2 });
     expect(summarizeHistory(entries, "tix")).toEqual({ text: "0.00 TIX", count: 3, missing: 3, fallback: 0 });
+  });
+
+  it("sums mixed scans using each assumed finish and counts missing foil prices as fallbacks", () => {
+    const prices = { usd: "1.00", usd_foil: "5.00", eur: "2.00", eur_foil: null, tix: "0.10" };
+    const normal = { ...entry, card: { ...card, prices } };
+    const foil = { ...entry, id: "foil", card: { ...card, prices, foilAvailable: true, assumedFoil: true } };
+    expect(summarizeHistory([normal, foil], "usd")).toEqual({ text: "$6.00", count: 2, missing: 0, fallback: 0 });
+    expect(summarizeHistory([normal, foil], "eur")).toEqual({ text: "€4.00", count: 2, missing: 0, fallback: 1 });
+    expect(summarizeHistory([normal, foil], "tix")).toEqual({ text: "0.20 TIX", count: 2, missing: 0, fallback: 0 });
   });
 });

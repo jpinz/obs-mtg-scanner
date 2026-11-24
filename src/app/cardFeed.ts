@@ -13,6 +13,7 @@ export function isIgnoredCard(card: ScannedCard, settings: CardIgnoreSettings): 
 export interface CardFeedDeps {
   lookup(cardId: string, signal: AbortSignal): Promise<ScannedCard>;
   shouldIgnore(card: ScannedCard): boolean;
+  assumeFoil(): boolean;
   /** Publishes card state to the overlay; `null` hides the panel. */
   publish(card: CardInfo | null, confidence: number | null): void;
   onNewCard(card: CardInfo, seenAt: string): void;
@@ -61,9 +62,13 @@ export class CardFeed {
     this.current = null;
     const controller = new AbortController();
     this.lookup = controller;
+    const assumeFoil = this.deps.assumeFoil();
     try {
-      const result = await this.deps.lookup(cardId, controller.signal);
+      const scanned = await this.deps.lookup(cardId, controller.signal);
       if (controller.signal.aborted || this.presence.cardId !== cardId) return;
+      const result = assumeFoil && scanned.card.foilAvailable
+        ? { ...scanned, card: { ...scanned.card, assumedFoil: true } }
+        : scanned;
       this.deps.onError(null);
       this.current = { result, confidence, seenAt, recorded: false };
       this.refreshIgnoreRules();

@@ -1,7 +1,7 @@
 import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
 import { formatPrice, ScryfallClient, type CardInfo } from "../scryfall";
 import { CURRENCY_LABELS, type Currency } from "../settings";
-import { summarizeHistory, type HistoryEntry } from "./history";
+import { replaceHistoryCard, summarizeHistory, type HistoryEntry } from "./history";
 
 const timestampFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "medium" });
 
@@ -111,6 +111,10 @@ export function HistoryPanel(props: {
 
   onSettled(() => () => request?.abort());
   const summary = () => summarizeHistory(props.entries, props.currency);
+  const resultCard = (card: CardInfo) => {
+    const entry = props.entries.find((candidate) => candidate.id === editingId());
+    return entry ? replaceHistoryCard(entry, card).card : card;
+  };
 
   return (
     <section class="history" aria-labelledby="history-heading">
@@ -122,6 +126,8 @@ export function HistoryPanel(props: {
         <button type="button" class="button button--primary" onClick={() => openSearch()}>Add card</button>
       </div>
       <p class="help">Prices use {CURRENCY_LABELS[props.currency]} with finish fallback.
+        {props.currency !== "tix" && props.entries.some((entry) => entry.card.assumedFoil)
+          && " Assumed-foil scans prefer foil prices."}
         {summary().missing > 0 && ` ${summary().missing} without a price.`}
         {summary().fallback > 0 && ` ${summary().fallback} using another finish.`}
       </p>
@@ -149,7 +155,7 @@ export function HistoryPanel(props: {
                     closeSearch();
                   }}>
                     <strong>{card().name}</strong>
-                    <span>{card().setName} · {card().setCode} #{card().collectorNumber} · {formatPrice(card(), props.currency)?.text ?? "No price"}</span>
+                    <span>{card().setName} · {card().setCode} #{card().collectorNumber}{resultCard(card()).assumedFoil ? " · Foil (assumed)" : ""} · {formatPrice(resultCard(card()), props.currency)?.text ?? "No price"}</span>
                   </button>
                 </li>
               )}
@@ -188,7 +194,7 @@ export function HistoryPanel(props: {
                     onChange={(event) => selectEntry(entry().id, event.currentTarget.checked)} />
                   <span class="history-list__card">
                     <strong>{entry().card.name}</strong>
-                    <span>{entry().card.setName} · {entry().card.setCode} #{entry().card.collectorNumber}</span>
+                    <span>{entry().card.setName} · {entry().card.setCode} #{entry().card.collectorNumber}{entry().card.assumedFoil ? " · Foil (assumed)" : ""}</span>
                     <span>{formatPrice(entry().card, props.currency)?.text ?? "No price"}</span>
                     <time datetime={entry().addedAt}>Recorded {timestampFormat.format(new Date(entry().addedAt))}</time>
                   </span>

@@ -49,12 +49,32 @@ describe("parseCard", () => {
       card_faces: [{ image_uris: { normal: "https://example.test/front.jpg" } }],
     })).imageUrl).toBe("https://example.test/front.jpg");
   });
+
+  it("recognizes foil availability for the identified printing", () => {
+    expect(parseCard(cardJson({ finishes: ["nonfoil", "foil"] })).foilAvailable).toBe(true);
+    expect(parseCard(cardJson({ finishes: ["nonfoil", "etched"], foil: true })).foilAvailable).toBe(false);
+    expect(parseCard(cardJson({ finishes: undefined, foil: true })).foilAvailable).toBe(true);
+    expect(parseCard(cardJson({ finishes: undefined })).foilAvailable).toBe(false);
+  });
 });
 
 describe("formatPrice", () => {
   it("formats the requested price and falls back to foil", () => {
     expect(formatPrice(cardWithPrices({ usd: "1.2" }), "usd")).toEqual({ text: "$1.20", currency: "usd" });
     expect(formatPrice(cardWithPrices({ usd: null, usd_foil: "2.5" }), "usd")).toEqual({ text: "$2.50", currency: "usd_foil" });
+  });
+
+  it("prefers foil prices for assumed-foil scans without mixing currencies", () => {
+    const foil = {
+      ...cardWithPrices({ usd: "1.2", usd_foil: "2.5", usd_etched: "3.5", eur: "1", eur_foil: "4", tix: "0.05" }),
+      assumedFoil: true,
+    };
+    expect(formatPrice(foil, "usd")).toEqual({ text: "$2.50", currency: "usd_foil" });
+    expect(formatPrice(foil, "usd_etched")).toEqual({ text: "$2.50", currency: "usd_foil" });
+    expect(formatPrice(foil, "eur")).toEqual({ text: "€4.00", currency: "eur_foil" });
+    expect(formatPrice(foil, "tix")).toEqual({ text: "0.05 TIX", currency: "tix" });
+    expect(formatPrice({ ...foil, prices: { usd: "1.2" } }, "usd")).toEqual({ text: "$1.20", currency: "usd" });
+    expect(formatFinishPrices(foil, "usd").map((price) => price.currency)).toEqual(["usd", "usd_foil", "usd_etched"]);
   });
 
   describe("formatFinishPrices", () => {

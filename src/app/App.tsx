@@ -35,7 +35,7 @@ import {
 } from "../settings";
 import { CardFeed, isIgnoredCard } from "./cardFeed";
 import { HistoryPanel } from "./HistoryPanel";
-import { HISTORY_STORAGE_KEY, parseHistory, removeHistoryEntries, summarizeHistory, type HistoryEntry } from "./history";
+import { HISTORY_STORAGE_KEY, parseHistory, removeHistoryEntries, replaceHistoryCard, summarizeHistory, type HistoryEntry } from "./history";
 import { IgnoreZoneEditor } from "./IgnoreZoneEditor";
 import type { OverlaySession } from "./overlaySession";
 import { cameraConstraints, createScanner } from "./scanner";
@@ -516,6 +516,7 @@ export function App(props: { session: OverlaySession }) {
       {
         lookup: (cardId, signal) => scryfall.getCard(cardId, signal),
         shouldIgnore: (card) => isIgnoredCard(card, settings),
+        assumeFoil: () => settings.assumeFoil,
         publish: (card, confidence) => {
           latestCard = card;
           latestConfidence = card ? confidence : null;
@@ -766,7 +767,7 @@ export function App(props: { session: OverlaySession }) {
             <p class="history__error" role="alert" hidden={!historyError()}>{historyError()}</p>
             <HistoryPanel entries={history()} currency={settings.currency} client={scryfall}
               onAdd={addToHistory}
-              onReplace={(id, card) => updateHistory(history().map((entry) => entry.id === id ? { ...entry, card } : entry))}
+              onReplace={(id, card) => updateHistory(history().map((entry) => entry.id === id ? replaceHistoryCard(entry, card) : entry))}
               onRemove={(ids) => updateHistory(removeHistoryEntries(history(), ids))}
             />
           </div>
@@ -842,6 +843,14 @@ export function App(props: { session: OverlaySession }) {
                   onChange={(event) => commit("query", event.currentTarget.value)}
                 />
               </label>
+              <div>
+                <CheckField
+                  label="Assume scanned cards are foil when available"
+                  checked={settings.assumeFoil}
+                  onChange={(on) => commit("assumefoil", on ? "1" : "0")}
+                />
+                <p class="help">Only new scans are affected. USD and EUR prices prefer foil when the identified printing has a foil finish.</p>
+              </div>
               <fieldset class="subgroup check-list">
                 <legend>Ignore recognized cards</legend>
                 <CheckField

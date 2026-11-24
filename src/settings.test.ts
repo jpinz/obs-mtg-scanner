@@ -17,7 +17,7 @@ describe("parseSettings", () => {
     const s = parseSettings(
       "?currency=eur_foil&finishes=1&image=0&name=0&info=off&details=price,set,confidence&ipos=0.1,0.2,0.3,0.4&npos=0.3,0.4,0.2,0.05&dpos=0.5,0.6,0.25,0.3"
         + "&ts=20&nts=32&dts=14&dsz=price:28,SET:12,bogus:9,rarity:abc&fts=18"
-        + "&follow=1&sides=right,left&duration=0&threshold=0.7&ignoreart=1&ignoretokens=on&ignoreunplayable=yes"
+        + "&follow=1&sides=right,left&duration=0&threshold=0.7&assumefoil=on&ignoreart=1&ignoretokens=on&ignoreunplayable=yes"
         + "&setcode=woe&query=t%3Acreature&camera=abc&res=1920x1080&mirror=1&theme=light&accent=22c55e&debug=on",
     );
     expect(s).toEqual<OverlaySettings>({
@@ -43,6 +43,7 @@ describe("parseSettings", () => {
       followSides: ["left", "right"],
       duration: 0,
       threshold: 0.7,
+      assumeFoil: true,
       ignoreArtCards: true,
       ignoreTokenCards: true,
       ignoreNonPlayableCards: true,
@@ -155,6 +156,14 @@ describe("parseSettings", () => {
     expect(overlay.has("ignoreart")).toBe(false);
     expect(overlay.has("ignoretokens")).toBe(false);
     expect(overlay.has("ignoreunplayable")).toBe(false);
+  });
+
+  it("round-trips the scanner-only foil assumption", () => {
+    const settings = { ...DEFAULT_SETTINGS, assumeFoil: true };
+    const query = serializeSettings(settings);
+    expect(query.get("assumefoil")).toBe("1");
+    expect(parseSettings(query)).toEqual(settings);
+    expect(serializeOverlaySettings(settings).has("assumefoil")).toBe(false);
   });
 
   it("falls back or clamps on invalid values", () => {

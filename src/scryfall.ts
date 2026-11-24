@@ -9,6 +9,8 @@ export interface CardInfo {
   rarity: string;
   imageUrl: string | null;
   prices: Partial<Record<Currency, string | null>>;
+  foilAvailable?: boolean;
+  assumedFoil?: boolean;
   scryfallUri: string;
 }
 
@@ -79,6 +81,7 @@ export function parseCard(json: unknown): CardInfo {
     rarity: stringValue(card.rarity),
     imageUrl: typeof imageUris?.normal === "string" ? imageUris.normal : null,
     prices,
+    foilAvailable: Array.isArray(card.finishes) ? card.finishes.includes("foil") : card.foil === true,
     scryfallUri: stringValue(card.scryfall_uri),
   };
 }
@@ -101,8 +104,15 @@ function parseScannedCard(json: unknown): ScannedCard {
   };
 }
 
+export function preferredPriceCurrency(card: CardInfo, currency: Currency): Currency {
+  if (!card.assumedFoil) return currency;
+  if (currency.startsWith("usd")) return "usd_foil";
+  if (currency.startsWith("eur")) return "eur_foil";
+  return currency;
+}
+
 export function formatPrice(card: CardInfo, currency: Currency): PriceDisplay | null {
-  for (const candidate of priceFallbacks[currency]) {
+  for (const candidate of priceFallbacks[preferredPriceCurrency(card, currency)]) {
     const price = formatExactPrice(card, candidate);
     if (price) return price;
   }

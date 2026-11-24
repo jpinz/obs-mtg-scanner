@@ -67,6 +67,11 @@ function parseCardInfo(value: unknown): CardInfo | null {
     }
   }
 
+  const foilAvailable = value.foilAvailable;
+  const assumedFoil = value.assumedFoil;
+  if (foilAvailable !== undefined && typeof foilAvailable !== "boolean") return null;
+  if (assumedFoil !== undefined && typeof assumedFoil !== "boolean") return null;
+
   return {
     id: value.id as string,
     name: value.name as string,
@@ -76,6 +81,8 @@ function parseCardInfo(value: unknown): CardInfo | null {
     rarity: value.rarity as string,
     imageUrl,
     prices,
+    ...(foilAvailable === undefined ? {} : { foilAvailable }),
+    ...(assumedFoil === undefined ? {} : { assumedFoil }),
     scryfallUri: value.scryfallUri as string,
   };
 }
