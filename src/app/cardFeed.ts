@@ -4,7 +4,7 @@ import { PresenceTracker } from "./presence";
 export interface CardFeedDeps {
   lookup(cardId: string, signal: AbortSignal): Promise<CardInfo>;
   /** Publishes card state to the overlay; `null` hides the panel. */
-  publish(card: CardInfo | null, confidence: number | null): void;
+  publish(card: CardInfo | null, confidence: number | null, seenAt?: string): void;
   onError(message: string): void;
 }
 
@@ -37,13 +37,14 @@ export class CardFeed {
 
   async detected(cardId: string, now: number, confidence: number | null = null): Promise<void> {
     if (!this.presence.show(cardId, now)) return;
+    const seenAt = new Date().toISOString();
     this.lookup?.abort();
     const controller = new AbortController();
     this.lookup = controller;
     try {
       const card = await this.deps.lookup(cardId, controller.signal);
       if (controller.signal.aborted || this.presence.cardId !== cardId) return;
-      this.deps.publish(card, confidence);
+      this.deps.publish(card, confidence, seenAt);
     } catch (error) {
       if (controller.signal.aborted) return;
       console.error("Scryfall lookup failed", error);

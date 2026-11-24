@@ -36,7 +36,33 @@ describe("CardFeed", () => {
 
     expect(requests[0].signal.aborted).toBe(true);
     expect(publish).toHaveBeenCalledTimes(1);
-    expect(publish).toHaveBeenCalledWith({ ...card, id: "second" }, 0.91);
+    expect(publish).toHaveBeenCalledWith({ ...card, id: "second" }, 0.91, expect.any(String));
+  });
+
+  it("preserves the detection time when card lookup finishes later", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      let finishLookup!: (value: CardInfo) => void;
+      const publish = vi.fn();
+      const feed = new CardFeed(
+        {
+          lookup: () => new Promise((resolve) => { finishLookup = resolve; }),
+          publish,
+          onError: vi.fn(),
+        },
+        1000,
+      );
+
+      const detected = feed.detected(card.id, 0, 0.8);
+      vi.setSystemTime(new Date("2026-01-01T00:01:00.000Z"));
+      finishLookup(card);
+      await detected;
+
+      expect(publish).toHaveBeenCalledWith(card, 0.8, "2026-01-01T00:00:00.000Z");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("hides the panel once the absent-card duration elapses", async () => {
@@ -55,6 +81,6 @@ describe("CardFeed", () => {
     feed.tick(1000);
     feed.tick(1001);
 
-    expect(publish.mock.calls).toEqual([[card, null], [null, null]]);
+    expect(publish.mock.calls).toEqual([[card, null, expect.any(String)], [null, null]]);
   });
 });

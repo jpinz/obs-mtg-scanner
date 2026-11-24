@@ -35,7 +35,7 @@ import {
 } from "../settings";
 import { CardFeed } from "./cardFeed";
 import { HistoryPanel } from "./HistoryPanel";
-import { HISTORY_STORAGE_KEY, parseHistory, summarizeHistory, type HistoryEntry } from "./history";
+import { HISTORY_STORAGE_KEY, parseHistory, removeHistoryEntries, summarizeHistory, type HistoryEntry } from "./history";
 import { IgnoreZoneEditor } from "./IgnoreZoneEditor";
 import type { OverlaySession } from "./overlaySession";
 import { cameraConstraints, createScanner } from "./scanner";
@@ -232,8 +232,8 @@ export function App(props: { session: OverlaySession }) {
     }
   }
 
-  function addToHistory(card: CardInfo) {
-    updateHistory([{ id: crypto.randomUUID(), card, addedAt: new Date().toISOString() }, ...history()]);
+  function addToHistory(card: CardInfo, addedAt = new Date().toISOString()) {
+    updateHistory([{ id: crypto.randomUUID(), card, addedAt }, ...history()]);
   }
 
   function totalEvent(): ObsOverlayEvent {
@@ -510,13 +510,13 @@ export function App(props: { session: OverlaySession }) {
     const cardFeed = new CardFeed(
       {
         lookup: (cardId, signal) => scryfall.getCard(cardId, signal),
-        publish: (card, confidence) => {
+        publish: (card, confidence, seenAt) => {
           latestCard = card;
           latestConfidence = card ? confidence : null;
           if (!card) latestTracking = null;
           else setLookupError(null);
           publish({ type: "card", sessionId: props.session.sessionId, card, confidence: latestConfidence });
-          if (card) addToHistory(card);
+          if (card) addToHistory(card, seenAt);
         },
         onError: setLookupError,
       },
@@ -762,7 +762,7 @@ export function App(props: { session: OverlaySession }) {
             <HistoryPanel entries={history()} currency={settings.currency} client={scryfall}
               onAdd={addToHistory}
               onReplace={(id, card) => updateHistory(history().map((entry) => entry.id === id ? { ...entry, card } : entry))}
-              onRemove={(id) => updateHistory(history().filter((entry) => entry.id !== id))}
+              onRemove={(ids) => updateHistory(removeHistoryEntries(history(), ids))}
             />
           </div>
         <form id="settings-panel" role="tabpanel" aria-labelledby="settings-tab" hidden={activeTab() !== "settings"} class="controls" autocomplete="off" onSubmit={(event) => event.preventDefault()}>
