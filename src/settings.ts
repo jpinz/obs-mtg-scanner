@@ -72,6 +72,9 @@ export const MIN_IGNORE_ZONE_AREA = 0.0000005;
 export interface OverlaySettings {
   currency: Currency;
   allFinishes: boolean;
+  celebrationEnabled: boolean;
+  celebrationThreshold: number;
+  celebrationSound: boolean;
   showImage: boolean;
   showName: boolean;
   showDetails: boolean;
@@ -114,6 +117,9 @@ export interface OverlaySettings {
 export const DEFAULT_SETTINGS: Readonly<OverlaySettings> = Object.freeze({
   currency: "usd",
   allFinishes: false,
+  celebrationEnabled: false,
+  celebrationThreshold: 20,
+  celebrationSound: true,
   showImage: true,
   showName: true,
   showDetails: true,
@@ -161,6 +167,9 @@ function imageSizeFor(widthPx: number): { width: number; height: number } {
 const PARAM = {
   currency: "currency",
   allFinishes: "finishes",
+  celebrationEnabled: "celebrate",
+  celebrationThreshold: "celebrateAt",
+  celebrationSound: "celebrateSound",
   showImage: "image",
   showName: "name",
   showDetails: "info",
@@ -377,6 +386,9 @@ export function parseSettings(search: string | URLSearchParams): OverlaySettings
   return {
     currency: parseEnum(p.get(PARAM.currency), CURRENCIES, d.currency),
     allFinishes: parseBool(p.get(PARAM.allFinishes), d.allFinishes),
+    celebrationEnabled: parseBool(p.get(PARAM.celebrationEnabled), d.celebrationEnabled),
+    celebrationThreshold: parseNumber(p.get(PARAM.celebrationThreshold), d.celebrationThreshold, 0, Number.MAX_SAFE_INTEGER),
+    celebrationSound: parseBool(p.get(PARAM.celebrationSound), d.celebrationSound),
     showImage: parseBool(p.get(PARAM.showImage), d.showImage),
     showName: parseBool(p.get(PARAM.showName), d.showName),
     showDetails: parseBool(p.get(PARAM.showDetails), d.showDetails),
@@ -428,6 +440,9 @@ export function serializeSettings(settings: OverlaySettings): URLSearchParams {
 
   set("currency", settings.currency, d.currency);
   set("allFinishes", bool(settings.allFinishes), bool(d.allFinishes));
+  set("celebrationEnabled", bool(settings.celebrationEnabled), bool(d.celebrationEnabled));
+  set("celebrationThreshold", String(settings.celebrationThreshold), String(d.celebrationThreshold));
+  set("celebrationSound", bool(settings.celebrationSound), bool(d.celebrationSound));
   set("showImage", bool(settings.showImage), bool(d.showImage));
   set("showName", bool(settings.showName), bool(d.showName));
   set("showDetails", bool(settings.showDetails), bool(d.showDetails));
@@ -467,6 +482,9 @@ export function serializeSettings(settings: OverlaySettings): URLSearchParams {
 const OVERLAY_KEYS = [
   "currency",
   "allFinishes",
+  "celebrationEnabled",
+  "celebrationThreshold",
+  "celebrationSound",
   "showImage",
   "showName",
   "showDetails",

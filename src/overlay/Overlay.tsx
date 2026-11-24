@@ -5,6 +5,7 @@ import {
   parseObsOverlayEvent,
   toOverlayEventData,
   type ObsOverlayEvent,
+  type CelebrationEvent,
 } from "../obsWebSocket";
 import { parsePreviewMessage, toPreviewMessageData } from "../previewMessages";
 import type { CardInfo } from "../scryfall";
@@ -15,6 +16,7 @@ import type { Size } from "./followPlacement";
 import { CardDetails, CardImage, CardName, useShownCard } from "./Panel";
 import { Pinned, type DragMode } from "./Pinned";
 import { SAMPLE_CARD, SAMPLE_CORNERS } from "./sampleCard";
+import { Celebration } from "./Celebration";
 
 /** The follow panel hides when the scanner stops sending tracking updates for this long. */
 const TRACKING_TIMEOUT_MS = 1000;
@@ -41,6 +43,7 @@ interface DragState {
 export function Overlay(props: { settings: OverlaySettings; sessionId: string | null; preview?: boolean }) {
   const [settings, setSettings] = createSignal(props.settings);
   const [card, setCard] = createSignal<CardInfo | null>(null);
+  const [celebration, setCelebration] = createSignal<CelebrationEvent | null>(null);
   const [confidence, setConfidence] = createSignal<number | null>(null);
   const [total, setTotal] = createSignal({ text: "$0.00", missing: 0, count: 0 });
   const [cardId, setCardId] = createSignal<string | null>(null);
@@ -186,6 +189,10 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
     const receive = (event: ObsOverlayEvent) => {
       if (event.sessionId !== sessionId) return;
       if (event.type === "ready") return;
+      if (event.type === "celebration") {
+        setCelebration(event);
+        return;
+      }
       if (event.type === "settings") {
         applySettings(parseSettings(event.settings));
         return;
@@ -274,6 +281,7 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
 
   return (
     <>
+      <Celebration event={celebration()} sound={settings().celebrationSound} preview={props.preview} />
       <Show when={debugOutline()}>
         {(points) => (
           <svg class="debug-outline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">

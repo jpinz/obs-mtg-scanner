@@ -23,6 +23,9 @@ describe("parseSettings", () => {
     expect(s).toEqual<OverlaySettings>({
       currency: "eur_foil",
       allFinishes: true,
+      celebrationEnabled: false,
+      celebrationThreshold: 20,
+      celebrationSound: true,
       showImage: false,
       showName: false,
       showDetails: false,
@@ -63,6 +66,16 @@ describe("parseSettings", () => {
     const settings = parseSettings("?catalog=v1&setcode=woe");
     expect(settings).toEqual({ ...DEFAULT_SETTINGS, setCodes: ["woe"] });
     expect(serializeSettings(settings).has("catalog")).toBe(false);
+  });
+
+  it("round-trips celebration settings for the app and overlay and validates the threshold", () => {
+    const settings = { ...DEFAULT_SETTINGS, celebrationEnabled: true, celebrationThreshold: 12.34, celebrationSound: false };
+    expect(parseSettings(serializeSettings(settings))).toEqual(settings);
+    expect(parseSettings(serializeOverlaySettings(settings))).toEqual(settings);
+    expect(parseSettings("celebrateAt=-1").celebrationThreshold).toBe(0);
+    for (const value of ["", "NaN", "Infinity", "invalid"]) {
+      expect(parseSettings(`celebrateAt=${value}`).celebrationThreshold).toBe(20);
+    }
   });
 
   it("combines comma-separated and repeated set codes, ignoring case, whitespace, and duplicates", () => {

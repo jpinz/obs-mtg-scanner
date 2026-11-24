@@ -3,6 +3,19 @@ import { Checkbox } from "@kobalte/core/checkbox";
 import { createEffect, createMemo, createSignal, createStore, For, onSettled, snapshot } from "solid-js";
 import { PREVIEW_PARAM, SESSION_PARAM } from "../overlayState";
 import {
+  DEFAULT_CELEBRATION_SOUND,
+  MAX_SOUND_BYTES,
+  SOUND_CHOICE_STORAGE_KEY,
+  SOUND_STORAGE_KEY,
+  loadCustomSound,
+  loadSoundChoice,
+  shouldCelebrate,
+  soundForEvent,
+  soundSource,
+  type CelebrationSoundChoice,
+  type CustomSound,
+} from "../celebration";
+import {
   DEFAULT_OBS_PORT,
   ObsWebSocketClient,
   parseObsOverlayEvent,
@@ -96,11 +109,11 @@ function toggleListParam<T extends string>(allowed: readonly T[], current: reado
   return next.length === 0 ? "none" : next.join(",");
 }
 
-function SelectField(props: { label: string; value: string; options: Option[]; onChange(value: string): void }) {
+function SelectField(props: { label: string; value: string; options: Option[]; disabled?: boolean; onChange(value: string): void }) {
   return (
     <label>
       {props.label}
-      <select onChange={(event) => props.onChange(event.currentTarget.value)}>
+      <select disabled={props.disabled} onChange={(event) => props.onChange(event.currentTarget.value)}>
         {/* `selected` per option, since a select's value can't be set before its options exist. */}
         <For each={props.options} keyed={(option) => option.value}>
           {(option) => (
@@ -183,6 +196,10 @@ export function App(props: { session: OverlaySession }) {
   const [modelStatus, setModelStatus] = createSignal<ModelStatus>({ kind: "loading", message: "Loading card scanner…" });
   const [scannerError, setScannerError] = createSignal<string | null>(null);
   const [lookupError, setLookupError] = createSignal<string | null>(null);
+  const [customSound, setCustomSound] = createSignal<CustomSound | null>(loadCustomSound());
+  const [soundChoice, setSoundChoice] = createSignal<CelebrationSoundChoice>(loadSoundChoice(customSound()));
+  const [soundError, setSoundError] = createSignal<string | null>(null);
+  const [soundLoading, setSoundLoading] = createSignal(false);
   const [devices, setDevices] = createSignal<MediaDeviceInfo[]>([]);
   const [previewScale, setPreviewScale] = createSignal(1);
   const [copied, setCopied] = createSignal(false);
@@ -210,6 +227,7 @@ export function App(props: { session: OverlaySession }) {
   let feed: CardFeed | undefined;
   let obsConnection: ObsWebSocketClient | undefined;
   let previewFrame: HTMLIFrameElement | undefined;
+  let celebrationAudio: HTMLAudioElement | undefined;
 
   /** The preview iframe gets events directly, so it never needs its own OBS connection. */
   function sendToPreview(event: ObsOverlayEvent) {
@@ -219,6 +237,68 @@ export function App(props: { session: OverlaySession }) {
   function publish(event: ObsOverlayEvent) {
     obsConnection?.broadcast(event);
     sendToPreview(event);
+  }
+
+  function celebrate() {
+    const sound = soundForEvent(soundChoice(), customSound());
+    publish({ type: "celebration", sessionId: props.session.sessionId, id: crypto.randomUUID(), sound });
+    if (!settings.celebrationSound || document.hidden) return;
+    celebrationAudio?.pause();
+    const audio = new Audio(soundSource(sound));
+    celebrationAudio = audio;
+    audio.volume = 0.65;
+    void audio.play().then(() => {
+      if (celebrationAudio === audio) setSoundError(null);
+    }).catch(() => {
+      if (celebrationAudio === audio) setSoundError("Could not play the sound. Use Test celebration to allow audio, or choose another MP3/WAV.");
+    });
+  }
+
+  function chooseSound(choice: CelebrationSoundChoice) {
+    setSoundChoice(choice);
+    try {
+      localStorage.setItem(SOUND_CHOICE_STORAGE_KEY, choice);
+      setSoundError(null);
+    } catch {
+      setSoundError("Could not save your sound selection. It will be lost on reload.");
+    }
+  }
+
+  async function uploadSound(file: File | undefined) {
+    if (!file) return;
+    if (!/\.(mp3|wav)$/i.test(file.name) || file.size === 0 || file.size > MAX_SOUND_BYTES) {
+      setSoundError("Choose an MP3 or WAV up to 256 KB.");
+      return;
+    }
+    setSoundLoading(true);
+    setSoundError(null);
+    try {
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(new Blob([file], { type: /\.mp3$/i.test(file.name) ? "audio/mpeg" : "audio/wav" }));
+      });
+      const next = { name: file.name, data };
+      localStorage.setItem(SOUND_STORAGE_KEY, JSON.stringify(next));
+      setCustomSound(next);
+      chooseSound("custom");
+    } catch {
+      setSoundError("Could not save this sound. Try a smaller file or allow browser storage.");
+    } finally {
+      setSoundLoading(false);
+    }
+  }
+
+  function resetSound() {
+    try {
+      localStorage.removeItem(SOUND_STORAGE_KEY);
+      setCustomSound(null);
+      if (soundChoice() === "custom") chooseSound("tada");
+      else setSoundError(null);
+    } catch {
+      setSoundError("Could not remove the saved sound. Allow browser storage and try again.");
+    }
   }
 
   function updateHistory(next: HistoryEntry[]) {
@@ -370,6 +450,9 @@ export function App(props: { session: OverlaySession }) {
     { defer: true },
   );
   createEffect(() => settings.threshold, (threshold) => scanner?.setThreshold(threshold), { defer: true });
+  createEffect(() => settings.celebrationSound && settings.celebrationEnabled, (enabled) => {
+    if (!enabled) celebrationAudio?.pause();
+  }, { defer: true });
   createEffect(
     () => [settings.ignoreArtCards, settings.ignoreTokenCards, settings.ignoreNonPlayableCards],
     () => feed?.refreshIgnoreRules(),
@@ -523,7 +606,10 @@ export function App(props: { session: OverlaySession }) {
           if (!card) latestTracking = null;
           publish({ type: "card", sessionId: props.session.sessionId, card, confidence: latestConfidence });
         },
-        onNewCard: addToHistory,
+        onNewCard: (card, seenAt) => {
+          addToHistory(card, seenAt);
+          if (shouldCelebrate(card, settings)) celebrate();
+        },
         onError: setLookupError,
       },
       settings.duration * 1000,
@@ -594,6 +680,7 @@ export function App(props: { session: OverlaySession }) {
       controller.dispose();
       connection.stop();
       obsConnection = undefined;
+      celebrationAudio?.pause();
     };
   });
 
@@ -870,6 +957,70 @@ export function App(props: { session: OverlaySession }) {
                 />
                 <p class="help">Cards with no legal or restricted Scryfall format include art cards and tokens. Ignored cards are not shown or added to history automatically.</p>
               </fieldset>
+            </fieldset>
+          </div>
+
+          <div class="control-group">
+            <fieldset>
+              <legend>Valuable card celebration</legend>
+              <CheckField
+                label="Celebrate valuable cards"
+                checked={settings.celebrationEnabled}
+                onChange={(on) => commit("celebrate", on ? "1" : "0")}
+              />
+              <label>
+                Celebrate at or above ({CURRENCY_LABELS[settings.currency]})
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={settings.celebrationThreshold}
+                  disabled={!settings.celebrationEnabled}
+                  onChange={(event) => commit("celebrateAt", event.currentTarget.value)}
+                />
+              </label>
+              <p class="help">Uses the selected overlay price and its finish fallback. Each newly detected card celebrates once in the preview and OBS.</p>
+              <CheckField
+                label="Play celebration sound"
+                checked={settings.celebrationSound}
+                disabled={!settings.celebrationEnabled}
+                onChange={(on) => commit("celebrateSound", on ? "1" : "0")}
+              />
+              <SelectField
+                label="Celebration sound"
+                value={soundChoice()}
+                options={[
+                  { value: "tada", label: "Tada fanfare" },
+                  { value: "party-horn", label: "Party horn" },
+                  ...(customSound() ? [{ value: "custom", label: `Custom: ${customSound()!.name}` }] : []),
+                ]}
+                disabled={!settings.celebrationEnabled || !settings.celebrationSound || soundLoading()}
+                onChange={(value) => chooseSound(value as CelebrationSoundChoice)}
+              />
+              <label>
+                Custom sound (MP3 or WAV, up to 256 KB)
+                <input
+                  type="file"
+                  accept=".mp3,.wav,audio/mpeg,audio/wav,audio/x-wav"
+                  disabled={!settings.celebrationEnabled || !settings.celebrationSound || soundLoading()}
+                  onChange={(event) => {
+                    void uploadSound(event.currentTarget.files?.[0]);
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              <p class="help" role="status">{soundLoading() ? "Saving sound..." : customSound() ? `Saved custom sound: ${customSound()!.name}` : "Choose an included sound or upload your own."}</p>
+              <div class="celebration-actions">
+                <Button type="button" class="button button--secondary" disabled={!settings.celebrationEnabled || soundLoading()} onClick={celebrate}>
+                  Test celebration
+                </Button>
+                <Button type="button" class="button button--secondary" hidden={!customSound()} disabled={soundLoading()} onClick={resetSound}>
+                  Remove custom sound
+                </Button>
+                <a href={DEFAULT_CELEBRATION_SOUND} download="tada_fanfare.mp3">Download tada_fanfare.mp3</a>
+              </div>
+              <p class="help">Sound is saved in this browser. In OBS, enable audio monitoring if you want to hear it locally; browser audio permissions may require interaction.</p>
+              <p class="history__error" role="alert" hidden={!soundError()}>{soundError()}</p>
             </fieldset>
           </div>
 

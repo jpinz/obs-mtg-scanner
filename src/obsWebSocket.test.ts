@@ -15,6 +15,18 @@ describe("OBS connection URL settings", () => {
   });
 
   describe("OBS card events", () => {
+    it("validates one-shot celebrations with bundled and custom sounds", () => {
+      const event = { type: "celebration", sessionId: "session", id: "unique-id", sound: null } as const;
+      const wire = { source: "obs-mtg-scanner", ...event };
+      expect(parseObsOverlayEvent(wire)).toEqual(event);
+      expect(parseObsOverlayEvent({ ...wire, sound: "party-horn" })).toEqual({ ...event, sound: "party-horn" });
+      expect(parseObsOverlayEvent({ ...wire, sound: "data:audio/wav;base64,UklGRg==" })).toEqual({
+        ...event, sound: "data:audio/wav;base64,UklGRg==",
+      });
+      for (const invalid of [{ id: "" }, { id: 1 }, { sound: undefined }, { sound: "javascript:alert(1)" }]) {
+        expect(parseObsOverlayEvent({ ...wire, ...invalid })).toBeNull();
+      }
+    });
     it("validates total events before displaying them", () => {
       const event = { source: "obs-mtg-scanner", type: "total", sessionId: "session", text: "$12.00", count: 3, missing: 1 };
       expect(parseObsOverlayEvent(event)).toEqual({ type: "total", sessionId: "session", text: "$12.00", count: 3, missing: 1 });

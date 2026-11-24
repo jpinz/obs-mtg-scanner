@@ -16,6 +16,12 @@ The app also previews the same overlay over its camera feed. If another app (inc
 
 The **History** tab records each successfully identified printing and lets you add a printing by card name, replace an entry with another printing, remove selected entries, or clear all history. Each entry shows when it was recorded in the browser's local time zone. History is saved in this browser; repeated detections of the same card while its panel remains active count once. The total overlay sums the selected price for each entry, using the same finish fallback as the card panel. It excludes entries without a price and marks them as unpriced; prices are saved at lookup time and are not refreshed automatically. Change the price setting to switch currency or finish. Turn off **Show total value** or use **Edit layout** to move and resize the total.
 
+Enable **Celebrate valuable cards** and enter a threshold to fire side confetti when a newly detected card's selected price meets or exceeds it. This uses the same currency and finish fallback as the card panel; unpriced cards do not trigger it. Holding the same card in frame does not repeat the celebration, and reconnecting OBS does not replay one. Both the preview and OBS celebrate; reduced-motion mode uses a brief, stationary edge sparkle instead of flying confetti. **Test celebration** previews the effect without adding to history.
+
+The bundled [tada fanfare](public/audio/tada_fanfare.mp3) plays by default; select **Party horn** for the [other included sound](public/audio/birthday_party_horn.mp3). You can mute the sound or upload an MP3/WAV up to 256 KB. A custom sound stays in this browser's storage and is sent directly to local OBS only when a celebration fires. Uploading it selects it automatically; switch between it and the included sounds, or use **Remove custom sound** to delete it. Browser autoplay rules may require pressing **Test celebration**, or using OBS's **Interact** window to enable celebration sound. Configure the Browser Source's audio monitoring in OBS if you want to hear OBS audio locally; both views play sound, so avoid monitoring both into the stream.
+
+Sound credits: [Tada Fanfare A](https://pixabay.com/sound-effects/musical-tada-fanfare-a-6313/) by plasterbrain (Freesound) and [Birthday Party Horn](https://pixabay.com/sound-effects/film-special-effects-birthday-party-horn-250238/) by Universfield, via Pixabay.
+
 Enable **Assume scanned cards are foil when available** under **Recognition** to treat new scans as foil when the identified printing has a foil finish. Their saved history entries and overlay prefer USD or EUR foil prices, falling back to another finish when necessary. Existing entries and manually added cards are unchanged.
 
 Under **Recognition**, the ignore options suppress art cards, token cards, or cards with no legal or restricted Scryfall format after they are recognized. The non-playable option also covers art cards and tokens; playable promotional printings remain eligible. Ignored cards are not displayed or added to history automatically. Existing history and manual additions are unaffected.
@@ -32,6 +38,9 @@ The default port is omitted from the URL; changing to a custom port requires cop
 | --- | --- | --- | --- |
 | `currency` | `usd`, `usd_foil`, `usd_etched`, `eur`, `eur_foil`, `tix` | `usd` | Price to show. Falls back to the other finish of the same currency when missing. |
 | `finishes` | `1` / `0` | `0` | Show every available finish price for the identified printing in the selected currency (USD nonfoil, foil, and etched; EUR nonfoil and foil). MTGO has one price. Other printings, such as alternate-art cards with a different collector number, have separate prices and are not included. |
+| `celebrate` | `1` / `0` | `0` | Celebrate newly detected cards meeting the price threshold |
+| `celebrateAt` | nonnegative amount | `20` | Celebration threshold in the selected currency and finish, with the panel's finish fallback |
+| `celebrateSound` | `1` / `0` | `1` | Play celebration audio; custom MP3/WAV uploads are saved separately in this browser |
 | `image` | `1` / `0` | `1` | Show the pinned card image |
 | `name` | `1` / `0` | `1` | Show the pinned card name |
 | `info` | `1` / `0` | `1` | Show the pinned card details |
