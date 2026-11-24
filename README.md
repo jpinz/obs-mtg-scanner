@@ -16,6 +16,8 @@ The app also previews the same overlay over its camera feed. If another app (inc
 
 The **History** tab records each successfully identified printing and lets you add a printing by card name, replace an entry with another printing, or remove it. History is saved in this browser; repeated detections of the same card while its panel remains active count once. The total overlay sums the selected price for each entry, using the same finish fallback as the card panel. It excludes entries without a price and marks them as unpriced; prices are saved at lookup time and are not refreshed automatically. Change the price setting to switch currency or finish. Turn off **Show total value** or use **Edit layout** to move and resize the total.
 
+Under **Recognition**, the ignore options suppress art cards, token cards, or cards with no legal or restricted Scryfall format after they are recognized. The non-playable option also covers art cards and tokens; playable promotional printings remain eligible. Ignored cards are not displayed or added to history automatically. Existing history and manual additions are unaffected.
+
 To exclude part of the camera image from recognition, start the camera and select **Ignore zones**. Click at least three points around an area, then select **Save zone**. Add multiple zones or remove them individually; **Undo point** removes the last point of the current draft. Keyboard users can focus the video, move the cursor with the arrow keys (Shift for larger steps), and press Enter to add points. Zones are saved with scanner settings and apply to any selected camera; check them after changing cameras. They follow the video when mirroring or changing resolution and are not shown in OBS. The scanner masks the areas before recognition and rejects detections that overlap them.
 
 When a WebSocket password is set, **Copy URL** includes it in the URL fragment (`#obsPassword=…`) so the Browser Source logs in automatically; the URL shown in the app masks it. Copy the URL again after changing the password. A fragment password takes precedence over a password saved in the Browser Source's browser profile and is not saved automatically. If the URL has no password and OBS requires one, use the Browser Source's **Interact** window to enter it. Fragments are not sent in the HTTP request to Vercel, but the password remains visible in OBS source settings; treat the copied URL as a secret.
@@ -44,6 +46,9 @@ The default port is omitted from the URL; changing to a custom port requires cop
 | `sides` | comma-separated `top`, `bottom`, `left`, `right`, or `none` | `top,bottom` | Sides of the card the follow panel may use; it picks the allowed side with the most room |
 | `duration` | seconds | `8` | How long the panel stays after the card leaves the frame (`0` = until the next card) |
 | `threshold` | `0`–`1` | `0.5` | Minimum match score |
+| `ignoreart` | `1` / `0` | `0` | Suppress recognized art series cards. |
+| `ignoretokens` | `1` / `0` | `0` | Suppress recognized token cards. |
+| `ignoreunplayable` | `1` / `0` | `0` | Suppress cards with no legal or restricted Scryfall format, including art cards and tokens. |
 | `setcode` | comma-separated set codes, e.g. `woe,mom` | all sets | Restrict recognition candidates to cards from any listed set. Case-insensitive; the parameter may also be repeated. |
 | `query` | Scryfall search syntax | no query filter | Restrict recognition candidates to cards matching a Scryfall query. May be combined with `setcode`. |
 | `camera` | device ID | default camera | Specific camera to use (`MediaDeviceInfo.deviceId`) |
