@@ -110,10 +110,10 @@ function CardPrice(props: { card: CardInfo; currency: Currency; allFinishes: boo
   const label = (currency: Currency) => {
     const fallback = props.card.assumedFoil && !props.allFinishes;
     if (currency === "usd") return props.allFinishes ? "nonfoil" : fallback ? "nonfoil fallback" : "";
-    if (currency === "usd_foil") return props.card.assumedFoil ? "foil (assumed)" : "foil";
+    if (currency === "usd_foil") return "foil";
     if (currency === "usd_etched") return fallback ? "etched fallback" : "etched";
     if (currency === "eur" && fallback) return "EUR nonfoil fallback";
-    return `${CURRENCY_LABELS[currency]}${props.allFinishes && currency === "eur" ? " nonfoil" : ""}${props.card.assumedFoil && currency === "eur_foil" ? " (assumed)" : ""}`;
+    return `${CURRENCY_LABELS[currency]}${props.allFinishes && currency === "eur" ? " nonfoil" : ""}`;
   };
   return (
     <div class="card-prices" style={textSize(props.size)}>

@@ -155,7 +155,7 @@ export function HistoryPanel(props: {
                     closeSearch();
                   }}>
                     <strong>{card().name}</strong>
-                    <span>{card().setName} · {card().setCode} #{card().collectorNumber}{resultCard(card()).assumedFoil ? " · Foil (assumed)" : ""} · {formatPrice(resultCard(card()), props.currency)?.text ?? "No price"}</span>
+                    <span>{card().setName} · {card().setCode} #{card().collectorNumber}{resultCard(card()).assumedFoil ? " · Foil" : ""} · {formatPrice(resultCard(card()), props.currency)?.text ?? "No price"}</span>
                   </button>
                 </li>
               )}
@@ -194,7 +194,7 @@ export function HistoryPanel(props: {
                     onChange={(event) => selectEntry(entry().id, event.currentTarget.checked)} />
                   <span class="history-list__card">
                     <strong>{entry().card.name}</strong>
-                    <span>{entry().card.setName} · {entry().card.setCode} #{entry().card.collectorNumber}{entry().card.assumedFoil ? " · Foil (assumed)" : ""}</span>
+                    <span>{entry().card.setName} · {entry().card.setCode} #{entry().card.collectorNumber}{entry().card.assumedFoil ? " · Foil" : ""}</span>
                     <span>{formatPrice(entry().card, props.currency)?.text ?? "No price"}</span>
                     <time datetime={entry().addedAt}>Recorded {timestampFormat.format(new Date(entry().addedAt))}</time>
                   </span>
