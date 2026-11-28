@@ -17,7 +17,8 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        app: `${import.meta.dirname}/index.html`,
+        landing: `${import.meta.dirname}/index.html`,
+        app: `${import.meta.dirname}/app.html`,
         overlay: `${import.meta.dirname}/overlay.html`,
       },
     },

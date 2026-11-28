@@ -47,6 +47,7 @@ export function FollowPanel(props: {
         left: `${placement()?.left ?? 0}px`,
         top: `${placement()?.top ?? 0}px`,
         "font-size": `${props.settings.followTextSize ?? props.settings.textSize}px`,
+        "--panel-opacity": props.settings.backgroundOpacity.follow,
       }}
       aria-live="polite"
     >

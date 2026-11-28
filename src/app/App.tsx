@@ -40,6 +40,7 @@ import {
   serializeSettings,
   setLayoutBox,
   TEXT_SIZE_RANGE,
+  type BackgroundComponent,
   type DetailField,
   type FollowSide,
   type LayoutBox,
@@ -70,6 +71,14 @@ const FOLLOW_SIDE_LABELS: Record<FollowSide, string> = {
 };
 
 type Option = { value: string; label: string };
+const WORKSPACE_TABS = [
+  { id: "camera", label: "Camera", title: "Camera setup", hint: "Choose your camera before starting the preview." },
+  { id: "recognition", label: "Recognition", title: "Recognition", hint: "Fine-tune which cards appear on your stream." },
+  { id: "overlay", label: "Overlay", title: "Overlay appearance", hint: "Choose what viewers see. Changes apply automatically." },
+  { id: "effects", label: "Effects", title: "Card celebrations", hint: "Make valuable finds a moment on your stream." },
+  { id: "obs", label: "OBS setup", title: "OBS setup", hint: "Connect your scanner to a local OBS Browser Source." },
+] as const;
+type WorkspaceTab = (typeof WORKSPACE_TABS)[number]["id"];
 
 function loadSettings(): OverlaySettings {
   if (window.location.search) return parseSettings(window.location.search);
@@ -127,6 +136,34 @@ function SelectField(props: { label: string; value: string; options: Option[]; d
   );
 }
 
+function BackgroundOpacityField(props: {
+  component: BackgroundComponent;
+  label: string;
+  value: number;
+  disabled?: boolean;
+  onChange(value: number): void;
+}) {
+  const id = () => `${props.component}-background-opacity`;
+  return (
+    <div class="range-field background-opacity">
+      <div class="field__heading">
+        <label for={id()}>{props.label} background opacity</label>
+        <output for={id()}>{Math.round(props.value * 100)}%</output>
+      </div>
+      <input
+        id={id()}
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value={Math.round(props.value * 100)}
+        disabled={props.disabled}
+        onInput={(event) => props.onChange(event.currentTarget.valueAsNumber / 100)}
+      />
+    </div>
+  );
+}
+
 /** Optional px size override: empty means inherit, and the placeholder shows the inherited size. */
 function TextSizeOverride(props: {
   id: string;
@@ -134,10 +171,13 @@ function TextSizeOverride(props: {
   value: number | null;
   inherited: number;
   disabled?: boolean;
+  inline?: boolean;
   onChange(value: number | null): void;
 }) {
+  // Browsers step an empty number input from its min (8px); step from the inherited size instead.
+  let spinDirection: 1 | -1 | null = null;
   return (
-    <div class="size-override">
+    <div class={["size-override", { "size-override--inline": props.inline }]}>
       <label for={props.id}>{props.label}</label>
       <span class="size-override__input">
         <input
@@ -150,6 +190,24 @@ function TextSizeOverride(props: {
           placeholder={String(props.inherited)}
           value={props.value ?? ""}
           disabled={props.disabled}
+          onKeyDown={(event) => {
+            if (event.currentTarget.value === "" && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+              event.currentTarget.value = String(props.inherited);
+            }
+          }}
+          onPointerDown={(event) => {
+            const input = event.currentTarget;
+            spinDirection = input.value === "" ? (event.offsetY < input.clientHeight / 2 ? 1 : -1) : null;
+          }}
+          onInput={(event) => {
+            const direction = spinDirection;
+            spinDirection = null;
+            const typed = event instanceof InputEvent && !!event.inputType;
+            if (direction !== null && !typed) {
+              const size = Math.min(TEXT_SIZE_RANGE.max, Math.max(TEXT_SIZE_RANGE.min, props.inherited + direction));
+              event.currentTarget.value = String(size);
+            }
+          }}
           onChange={(event) => {
             const n = event.currentTarget.valueAsNumber;
             if (!Number.isFinite(n)) event.currentTarget.value = "";
@@ -157,16 +215,6 @@ function TextSizeOverride(props: {
           }}
         />
         <span aria-hidden="true">px</span>
-        <button
-          type="button"
-          class="size-override__clear"
-          aria-label={`Use inherited size for ${props.label}`}
-          title="Use inherited size"
-          hidden={props.value === null}
-          onClick={() => props.onChange(null)}
-        >
-          ×
-        </button>
       </span>
     </div>
   );
@@ -205,7 +253,8 @@ export function App(props: { session: OverlaySession }) {
   const [copied, setCopied] = createSignal(false);
   const [editing, setEditing] = createSignal(false);
   const [editingZones, setEditingZones] = createSignal(false);
-  const [activeTab, setActiveTab] = createSignal<"settings" | "history">("settings");
+  const [activeTab, setActiveTab] = createSignal<WorkspaceTab>("camera");
+  const currentPanel = createMemo(() => WORKSPACE_TABS.find((tab) => tab.id === activeTab())!);
   const [historyError, setHistoryError] = createSignal<string | null>(null);
   const [history, setHistory] = createSignal<HistoryEntry[]>(() => {
     try {
@@ -216,10 +265,24 @@ export function App(props: { session: OverlaySession }) {
       return [];
     }
   });
+  const historySummary = createMemo(() => summarizeHistory(history(), settings.currency));
   const scryfall = new ScryfallClient();
   // Sliders preview locally while dragging and commit on release.
   const [thresholdDraft, setThresholdDraft] = createSignal(() => settings.threshold);
   const [textSizeDraft, setTextSizeDraft] = createSignal(() => settings.textSize);
+
+  function navigateTabs(event: KeyboardEvent) {
+    const index = WORKSPACE_TABS.findIndex((tab) => tab.id === activeTab());
+    let next: number;
+    if (event.key === "ArrowRight") next = (index + 1) % WORKSPACE_TABS.length;
+    else if (event.key === "ArrowLeft") next = (index + WORKSPACE_TABS.length - 1) % WORKSPACE_TABS.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = WORKSPACE_TABS.length - 1;
+    else return;
+    event.preventDefault();
+    setActiveTab(WORKSPACE_TABS[next].id);
+    document.getElementById(`${WORKSPACE_TABS[next].id}-tab`)?.focus();
+  }
 
   let stage!: HTMLDivElement;
   let frame!: HTMLDivElement;
@@ -375,6 +438,10 @@ export function App(props: { session: OverlaySession }) {
     if (size === null) delete sizes[field];
     else sizes[field] = size;
     commitSettings({ detailTextSizes: sizes });
+  }
+
+  function commitBackgroundOpacity(component: BackgroundComponent, value: number) {
+    commitSettings({ backgroundOpacity: { ...snapshot(settings).backgroundOpacity, [component]: value } });
   }
 
   const sizeParam = (size: number | null) => (size === null ? "" : String(size));
@@ -695,23 +762,21 @@ export function App(props: { session: OverlaySession }) {
   return (
     <div class={["app", { mirror: settings.mirror, debug: settings.debug }]}>
       <header class="topbar">
-        <div class="topbar__mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <rect x="3.5" y="3" width="12" height="16" rx="2" />
-            <path d="M8.5 3H17a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H8.5" />
-          </svg>
-        </div>
+        <a class="topbar__brand" href="./" aria-label="ManaCast home">
+          <img class="topbar__mark" src={`${import.meta.env.BASE_URL}manacast-mark.svg`} alt="" width="40" height="40" />
+          <span>ManaCast</span>
+        </a>
         <div>
-          <h1>MTG Card Scanner</h1>
-          <p class="topbar__hint">Hold a card up to the camera. Add the overlay to OBS as a Browser Source.</p>
+          <h1>Streaming workspace</h1>
         </div>
+        <a class="topbar__home" href="./">About ManaCast</a>
       </header>
       <main class="layout">
         <section class="preview" aria-labelledby="preview-title">
           <div class="preview__heading">
             <div>
-              <h2 id="preview-title">Camera preview</h2>
-              <p>Video stays in this browser. Preview includes your OBS overlay.</p>
+              <h2 id="preview-title">Your stream, in view.</h2>
+              <p>Camera preview with your OBS overlay. Video stays in this browser.</p>
             </div>
             <div class="preview__actions">
               {editing() && (
@@ -722,8 +787,10 @@ export function App(props: { session: OverlaySession }) {
               <Button
                 type="button"
                 class="button button--secondary"
+                hidden={activeTab() !== "overlay" && !editing()}
                 aria-pressed={editing() ? "true" : "false"}
                 onClick={() => {
+                  setActiveTab("overlay");
                   setEditingZones(false);
                   setEditing((on) => !on);
                 }}
@@ -733,9 +800,11 @@ export function App(props: { session: OverlaySession }) {
               <Button
                 type="button"
                 class="button button--secondary"
+                hidden={activeTab() !== "recognition" && !editingZones()}
                 disabled={cameraState() !== "on"}
                 aria-pressed={editingZones() ? "true" : "false"}
                 onClick={() => {
+                  setActiveTab("recognition");
                   setEditing(false);
                   setEditingZones((on) => !on);
                 }}
@@ -743,6 +812,7 @@ export function App(props: { session: OverlaySession }) {
                 {editingZones() ? "Done with zones" : "Ignore zones"}
               </Button>
               <Button
+                id="camera-toggle"
                 type="button"
                 class={["button", { "button--primary": cameraState() === "off", "button--secondary": cameraState() !== "off" }]}
                 onClick={toggleCamera}
@@ -798,10 +868,46 @@ export function App(props: { session: OverlaySession }) {
             {status().text}
           </p>
 
-          <section class="source" aria-labelledby="source-title">
+          <div class="stream-summary" aria-label="Scanner overview">
+            <a href="#history-panel">
+              <span>Saved cards</span><strong>{history().length}</strong>
+            </a>
+            <div><span>Saved value</span><strong>{historySummary().text}</strong></div>
+            <button type="button" onClick={() => setActiveTab("obs")}>
+              <span>OBS connection</span>
+              <strong>{obsStatus().state === "connected" ? "Connected" : "Set up OBS"}</strong>
+            </button>
+          </div>
+          <p class="preview__footnote">Keep this tab open while streaming. OBS displays card information without accessing your camera.</p>
+          <div id="history-panel">
+            <p class="history__error" role="alert" hidden={!historyError()}>{historyError()}</p>
+            <HistoryPanel entries={history()} currency={settings.currency} client={scryfall}
+              onAdd={addToHistory}
+              onReplace={(id, card) => updateHistory(history().map((entry) => entry.id === id ? replaceHistoryCard(entry, card) : entry))}
+              onRemove={(ids) => updateHistory(removeHistoryEntries(history(), ids))}
+            />
+          </div>
+        </section>
+
+        <aside class="sidebar" aria-label="Stream controls">
+          <div class="tabs" role="tablist" aria-label="Scanner panels">
+            <For each={WORKSPACE_TABS} keyed={(tab) => tab.id}>
+              {(tab) => (
+                <button type="button" role="tab" id={`${tab().id}-tab`}
+                  aria-controls={tab().id === "obs" ? "obs-panel" : "settings-panel"}
+                  aria-selected={activeTab() === tab().id ? "true" : "false"}
+                  tabindex={activeTab() === tab().id ? 0 : -1}
+                  onClick={() => setActiveTab(tab().id)}
+                  onKeyDown={navigateTabs}>
+                  {tab().label}
+                </button>
+              )}
+            </For>
+          </div>
+          <section id="obs-panel" class="source" role="tabpanel" aria-labelledby="obs-tab" hidden={activeTab() !== "obs"}>
             <div class="source__heading">
               <div>
-                <h2 id="source-title">OBS Browser Source</h2>
+                <h2>OBS Browser Source</h2>
                 <p>Copy this URL into an OBS Browser Source.</p>
               </div>
               <span class="source__resolution">{CANVAS.width} × {CANVAS.height}</span>
@@ -845,33 +951,12 @@ export function App(props: { session: OverlaySession }) {
               <p class="help">In OBS, enable the WebSocket server in Tools → WebSocket Server Settings. Enter its password here, then copy the URL again. Your browser may ask permission to connect to the local network.</p>
             </fieldset>
           </section>
-        </section>
-
-        <aside class="sidebar">
-          <div class="tabs" role="tablist" aria-label="Scanner panels">
-            <button type="button" role="tab" id="settings-tab" aria-controls="settings-panel" aria-selected={activeTab() === "settings" ? "true" : "false"}
-              tabindex={activeTab() === "settings" ? 0 : -1}
-              onClick={() => setActiveTab("settings")}
-              onKeyDown={(event) => { if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); setActiveTab("history"); document.getElementById("history-tab")?.focus(); } }}>Settings</button>
-            <button type="button" role="tab" id="history-tab" aria-controls="history-panel" aria-selected={activeTab() === "history" ? "true" : "false"}
-              tabindex={activeTab() === "history" ? 0 : -1}
-              onClick={() => setActiveTab("history")}
-              onKeyDown={(event) => { if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); setActiveTab("settings"); document.getElementById("settings-tab")?.focus(); } }}>History <span>{history().length}</span></button>
-          </div>
-          <div id="history-panel" role="tabpanel" aria-labelledby="history-tab" hidden={activeTab() !== "history"}>
-            <p class="history__error" role="alert" hidden={!historyError()}>{historyError()}</p>
-            <HistoryPanel entries={history()} currency={settings.currency} client={scryfall}
-              onAdd={addToHistory}
-              onReplace={(id, card) => updateHistory(history().map((entry) => entry.id === id ? replaceHistoryCard(entry, card) : entry))}
-              onRemove={(ids) => updateHistory(removeHistoryEntries(history(), ids))}
-            />
-          </div>
-        <form id="settings-panel" role="tabpanel" aria-labelledby="settings-tab" hidden={activeTab() !== "settings"} class="controls" autocomplete="off" onSubmit={(event) => event.preventDefault()}>
+        <form id="settings-panel" role="tabpanel" aria-labelledby={`${activeTab()}-tab`} hidden={activeTab() === "obs"} class="controls" autocomplete="off" onSubmit={(event) => event.preventDefault()}>
           <div class="controls__heading">
-            <h2>Scanner settings</h2>
-            <p>Changes apply automatically.</p>
+            <h2>{currentPanel().title}</h2>
+            <p>{currentPanel().hint}</p>
           </div>
-          <div class="control-group">
+          <div class="control-group" hidden={activeTab() !== "camera"}>
             <fieldset>
               <legend>Camera</legend>
               <SelectField
@@ -890,7 +975,7 @@ export function App(props: { session: OverlaySession }) {
             </fieldset>
           </div>
 
-          <div class="control-group">
+          <div class="control-group" hidden={activeTab() !== "recognition"}>
             <fieldset>
               <legend>Recognition</legend>
               <div class="range-field">
@@ -968,7 +1053,7 @@ export function App(props: { session: OverlaySession }) {
             </fieldset>
           </div>
 
-          <div class="control-group">
+          <div class="control-group" hidden={activeTab() !== "effects"}>
             <fieldset>
               <legend>Valuable card celebration</legend>
               <CheckField
@@ -1032,7 +1117,7 @@ export function App(props: { session: OverlaySession }) {
             </fieldset>
           </div>
 
-          <div class="control-group">
+          <div class="control-group" hidden={activeTab() !== "overlay"}>
             <fieldset>
               <legend>Overlay</legend>
               <SelectField
@@ -1046,8 +1131,23 @@ export function App(props: { session: OverlaySession }) {
                 checked={settings.allFinishes}
                 onChange={(on) => commit("finishes", on ? "1" : "0")}
               />
-              <CheckField label="Show total value" checked={settings.showTotal} onChange={(on) => commit("total", on ? "1" : "0")} />
+              <div class="detail-setting">
+                <CheckField label="Show total value" checked={settings.showTotal} onChange={(on) => commit("total", on ? "1" : "0")} />
+                <TextSizeOverride
+                  id="total-text-size"
+                  label="Total value text size"
+                  value={settings.totalTextSize}
+                  inherited={settings.textSize}
+                  disabled={!settings.showTotal}
+                  inline
+                  onChange={(size) => commit("tts", sizeParam(size))}
+                />
+              </div>
+              <BackgroundOpacityField component="total" label="Total value" value={settings.backgroundOpacity.total}
+                disabled={!settings.showTotal} onChange={(value) => commitBackgroundOpacity("total", value)} />
               <CheckField label="Show highest value card" checked={settings.showHighest} onChange={(on) => commit("highest", on ? "1" : "0")} />
+              <BackgroundOpacityField component="highest" label="Highest-value card" value={settings.backgroundOpacity.highest}
+                disabled={!settings.showHighest} onChange={(value) => commitBackgroundOpacity("highest", value)} />
               <SelectField
                 label="Theme"
                 value={settings.theme}
@@ -1086,47 +1186,55 @@ export function App(props: { session: OverlaySession }) {
               <fieldset class="subgroup">
                 <legend>Pinned card details</legend>
                 <CheckField label="Card picture" checked={settings.showImage} onChange={(on) => commit("image", on ? "1" : "0")} />
-                <CheckField label="Card name" checked={settings.showName} onChange={(on) => commit("name", on ? "1" : "0")} />
-                <CheckField label="Card details" checked={settings.showDetails} onChange={(on) => commit("info", on ? "1" : "0")} />
+                <p class="help">Text sizes are in pixels. Leave empty to use the size shown. Opacity changes backgrounds only, not text or artwork.</p>
+                <div class="detail-setting">
+                  <CheckField label="Card name" checked={settings.showName} onChange={(on) => commit("name", on ? "1" : "0")} />
+                  <TextSizeOverride
+                    id="name-text-size"
+                    label="Card name text size"
+                    value={settings.nameTextSize}
+                    inherited={Math.round(settings.textSize * 1.25)}
+                    disabled={!settings.showName}
+                    inline
+                    onChange={(size) => commit("nts", sizeParam(size))}
+                  />
+                </div>
+                <BackgroundOpacityField component="name" label="Card name" value={settings.backgroundOpacity.name}
+                  disabled={!settings.showName} onChange={(value) => commitBackgroundOpacity("name", value)} />
+                <div class="detail-setting">
+                  <CheckField label="Card details" checked={settings.showDetails} onChange={(on) => commit("info", on ? "1" : "0")} />
+                  <TextSizeOverride
+                    id="details-text-size"
+                    label="Card details text size"
+                    value={settings.detailsTextSize}
+                    inherited={settings.textSize}
+                    disabled={!settings.showDetails}
+                    inline
+                    onChange={(size) => commit("dts", sizeParam(size))}
+                  />
+                </div>
+                <BackgroundOpacityField component="details" label="Card details" value={settings.backgroundOpacity.details}
+                  disabled={!settings.showDetails} onChange={(value) => commitBackgroundOpacity("details", value)} />
                 <fieldset class="check-list">
                   <legend>Details shown</legend>
                   <For each={[...DETAIL_FIELDS]} keyed={(field) => field}>
                     {(field) => (
+                      <div class="detail-setting">
                       <CheckField
                         label={DETAIL_FIELD_LABELS[field()]}
                         checked={settings.details.includes(field())}
                         onChange={(on) => commit("details", toggleListParam(DETAIL_FIELDS, settings.details, field(), on))}
                       />
-                    )}
-                  </For>
-                </fieldset>
-                <fieldset class="size-overrides">
-                  <legend>Text sizes</legend>
-                  <p class="help">Leave empty to use the inherited size shown.</p>
-                  <TextSizeOverride
-                    id="name-text-size"
-                    label="Name"
-                    value={settings.nameTextSize}
-                    inherited={Math.round(settings.textSize * 1.25)}
-                    onChange={(size) => commit("nts", sizeParam(size))}
-                  />
-                  <TextSizeOverride
-                    id="details-text-size"
-                    label="Details"
-                    value={settings.detailsTextSize}
-                    inherited={settings.textSize}
-                    onChange={(size) => commit("dts", sizeParam(size))}
-                  />
-                  <For each={[...DETAIL_FIELDS]} keyed={(field) => field}>
-                    {(field) => (
                       <TextSizeOverride
                         id={`detail-text-size-${field()}`}
-                        label={DETAIL_FIELD_LABELS[field()]}
+                        label={`${DETAIL_FIELD_LABELS[field()]} text size`}
                         value={settings.detailTextSizes[field()] ?? null}
                         inherited={field() === "price" ? detailsBaseSize() : Math.round(detailsBaseSize() * 0.8)}
                         disabled={!settings.details.includes(field())}
+                        inline
                         onChange={(size) => commitDetailTextSize(field(), size)}
                       />
+                      </div>
                     )}
                   </For>
                 </fieldset>
@@ -1135,6 +1243,8 @@ export function App(props: { session: OverlaySession }) {
               <fieldset class="subgroup">
                 <legend>Follow panel</legend>
                 <CheckField label="Follow the card" checked={settings.follow} onChange={(on) => commit("follow", on ? "1" : "0")} />
+                <BackgroundOpacityField component="follow" label="Follow panel" value={settings.backgroundOpacity.follow}
+                  disabled={!settings.follow} onChange={(value) => commitBackgroundOpacity("follow", value)} />
                 <fieldset class="check-list">
                   <legend>Sides</legend>
                   <For each={[...FOLLOW_SIDES]} keyed={(side) => side}>

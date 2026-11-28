@@ -69,6 +69,10 @@ export interface IgnoreZone {
 
 export const MIN_IGNORE_ZONE_AREA = 0.0000005;
 
+export const BACKGROUND_COMPONENTS = ["name", "details", "total", "highest", "follow"] as const;
+export type BackgroundComponent = (typeof BACKGROUND_COMPONENTS)[number];
+export type BackgroundOpacity = Readonly<Record<BackgroundComponent, number>>;
+
 export interface OverlaySettings {
   currency: Currency;
   allFinishes: boolean;
@@ -82,12 +86,16 @@ export interface OverlaySettings {
   showHighest: boolean;
   details: readonly DetailField[];
   layout: OverlayLayout;
+  /** Background alpha (0–1) per panel; text and artwork remain opaque. */
+  backgroundOpacity: BackgroundOpacity;
   /** Base text size in canvas px for every overlay component. */
   textSize: number;
   /** Card name size in px for the pinned Name component; null inherits (1.25 × textSize). */
   nameTextSize: number | null;
   /** Base size in px for the pinned Details component; null inherits textSize. */
   detailsTextSize: number | null;
+  /** Base size in px for the total value component; null inherits textSize. */
+  totalTextSize: number | null;
   /** Per detail line size in px, overriding the Details base size for that line. */
   detailTextSizes: Readonly<Partial<Record<DetailField, number>>>;
   /** Base size in px for the follow panel; null inherits textSize. */
@@ -134,9 +142,11 @@ export const DEFAULT_SETTINGS: Readonly<OverlaySettings> = Object.freeze({
     total: Object.freeze({ x: 0.02, y: 0.05, width: 0.18, height: 0.09 }),
     highest: Object.freeze({ x: 0.02, y: 0.16, width: 0.22, height: 0.2 }),
   }),
+  backgroundOpacity: Object.freeze({ name: 0.88, details: 0.88, total: 0.88, highest: 0.88, follow: 0.88 }),
   textSize: 16,
   nameTextSize: null,
   detailsTextSize: null,
+  totalTextSize: null,
   detailTextSizes: Object.freeze({}),
   followTextSize: null,
   follow: false,
@@ -154,7 +164,7 @@ export const DEFAULT_SETTINGS: Readonly<OverlaySettings> = Object.freeze({
   mirror: false,
   ignoreZones: Object.freeze([]),
   theme: "dark",
-  accent: "#f59e0b",
+  accent: "#ffd45c",
   debug: false,
 });
 
@@ -179,9 +189,11 @@ const PARAM = {
   showTotal: "total",
   showHighest: "highest",
   details: "details",
+  backgroundOpacity: "bg",
   textSize: "ts",
   nameTextSize: "nts",
   detailsTextSize: "dts",
+  totalTextSize: "tts",
   detailTextSizes: "dsz",
   followTextSize: "fts",
   follow: "follow",
@@ -324,6 +336,22 @@ function serializeDetailTextSizes(sizes: Readonly<Partial<Record<DetailField, nu
   return DETAIL_FIELDS.filter((field) => sizes[field] !== undefined).map((field) => `${field}:${sizes[field]}`).join(",");
 }
 
+function parseBackgroundOpacity(value: string | null): BackgroundOpacity {
+  const opacity = { ...DEFAULT_SETTINGS.backgroundOpacity };
+  for (const pair of value?.split(",") ?? []) {
+    const [component, alpha] = pair.split(":").map((part) => part.trim().toLowerCase());
+    if (!(BACKGROUND_COMPONENTS as readonly string[]).includes(component)) continue;
+    const key = component as BackgroundComponent;
+    opacity[key] = parseNumber(alpha ?? null, opacity[key], 0, 1);
+  }
+  return opacity;
+}
+
+function serializeBackgroundOpacity(opacity: BackgroundOpacity): string {
+  return BACKGROUND_COMPONENTS.filter((component) => opacity[component] !== DEFAULT_SETTINGS.backgroundOpacity[component])
+    .map((component) => `${component}:${opacity[component]}`).join(",");
+}
+
 function parseResolution(value: string | null, fallback: Resolution): Resolution {
   const match = value?.trim().match(/^(\d{2,5})x(\d{2,5})$/i);
   if (!match) return { ...fallback };
@@ -400,6 +428,7 @@ export function parseSettings(search: string | URLSearchParams): OverlaySettings
     showTotal: parseBool(p.get(PARAM.showTotal), d.showTotal),
     showHighest: parseBool(p.get(PARAM.showHighest), d.showHighest),
     details: parseList(p.get(PARAM.details), DETAIL_FIELDS, d.details),
+    backgroundOpacity: parseBackgroundOpacity(p.get(PARAM.backgroundOpacity)),
     layout: {
       image: parseLayoutBox(p.get(LAYOUT_PARAM.image), imageFallback),
       name: parseLayoutBox(p.get(LAYOUT_PARAM.name), d.layout.name),
@@ -410,6 +439,7 @@ export function parseSettings(search: string | URLSearchParams): OverlaySettings
     textSize: parseTextSize(p.get(PARAM.textSize), textSizeFallback),
     nameTextSize: parseOptionalTextSize(p.get(PARAM.nameTextSize)),
     detailsTextSize: parseOptionalTextSize(p.get(PARAM.detailsTextSize)),
+    totalTextSize: parseOptionalTextSize(p.get(PARAM.totalTextSize)),
     detailTextSizes: parseDetailTextSizes(p.get(PARAM.detailTextSizes)),
     followTextSize: parseOptionalTextSize(p.get(PARAM.followTextSize)),
     follow: parseBool(p.get(PARAM.follow), d.follow),
@@ -456,6 +486,7 @@ export function serializeSettings(settings: OverlaySettings): URLSearchParams {
   set("showTotal", bool(settings.showTotal), bool(d.showTotal));
   set("showHighest", bool(settings.showHighest), bool(d.showHighest));
   set("details", serializeList(settings.details), serializeList(d.details));
+  set("backgroundOpacity", serializeBackgroundOpacity(settings.backgroundOpacity), "");
   for (const item of LAYOUT_ITEMS) {
     const value = serializeLayoutBox(settings.layout[item]);
     if (value !== serializeLayoutBox(d.layout[item])) p.set(LAYOUT_PARAM[item], value);
@@ -464,6 +495,7 @@ export function serializeSettings(settings: OverlaySettings): URLSearchParams {
   set("textSize", String(settings.textSize), String(d.textSize));
   set("nameTextSize", optional(settings.nameTextSize), "");
   set("detailsTextSize", optional(settings.detailsTextSize), "");
+  set("totalTextSize", optional(settings.totalTextSize), "");
   set("detailTextSizes", serializeDetailTextSizes(settings.detailTextSizes), "");
   set("followTextSize", optional(settings.followTextSize), "");
   set("follow", bool(settings.follow), bool(d.follow));
@@ -500,9 +532,11 @@ const OVERLAY_KEYS = [
   "showHighest",
   "details",
   "layout",
+  "backgroundOpacity",
   "textSize",
   "nameTextSize",
   "detailsTextSize",
+  "totalTextSize",
   "detailTextSizes",
   "followTextSize",
   "follow",

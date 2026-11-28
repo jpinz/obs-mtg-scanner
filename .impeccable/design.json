@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-26T02:34:18.488Z",
+  "title": "Design System: ManaCast",
+  "extensions": {
+    "colorMeta": {
+      "landing-teal": { "role": "primary", "displayName": "Tabletop Teal", "tonalRamp": ["oklch(15% 0.02 190)", "oklch(27% 0.04 190)", "oklch(39% 0.06 190)", "oklch(51% 0.08 190)", "oklch(63% 0.09 190)", "oklch(75% 0.07 190)", "oklch(87% 0.04 190)", "oklch(95% 0.015 190)"] },
+      "landing-ink": { "role": "neutral", "displayName": "Landing Ink", "tonalRamp": ["oklch(15% 0.02 225)", "oklch(27% 0.035 225)", "oklch(39% 0.045 225)", "oklch(51% 0.05 225)", "oklch(63% 0.05 225)", "oklch(75% 0.04 225)", "oklch(87% 0.025 225)", "oklch(95% 0.01 225)"] },
+      "bg": { "role": "neutral", "displayName": "Workspace Ink", "tonalRamp": ["oklch(15% 0.02 222)", "oklch(27% 0.03 222)", "oklch(39% 0.04 222)", "oklch(51% 0.045 222)", "oklch(63% 0.045 222)", "oklch(75% 0.035 222)", "oklch(87% 0.02 222)", "oklch(95% 0.008 222)"] },
+      "surface": { "role": "neutral", "displayName": "Raised Ink", "tonalRamp": ["oklch(15% 0.02 216)", "oklch(27% 0.035 216)", "oklch(39% 0.045 216)", "oklch(51% 0.05 216)", "oklch(63% 0.05 216)", "oklch(75% 0.04 216)", "oklch(87% 0.02 216)", "oklch(95% 0.008 216)"] },
+      "surface-input": { "role": "neutral", "displayName": "Recessed Ink", "tonalRamp": ["oklch(15% 0.02 223)", "oklch(27% 0.03 223)", "oklch(39% 0.04 223)", "oklch(51% 0.045 223)", "oklch(63% 0.045 223)", "oklch(75% 0.035 223)", "oklch(87% 0.02 223)", "oklch(95% 0.008 223)"] },
+      "border": { "role": "neutral", "displayName": "Zone Rule", "tonalRamp": ["oklch(15% 0.015 215)", "oklch(27% 0.025 215)", "oklch(39% 0.035 215)", "oklch(51% 0.04 215)", "oklch(63% 0.04 215)", "oklch(75% 0.03 215)", "oklch(87% 0.02 215)", "oklch(95% 0.008 215)"] },
+      "border-control": { "role": "neutral", "displayName": "Control Rule", "tonalRamp": ["oklch(15% 0.01 210)", "oklch(27% 0.02 210)", "oklch(39% 0.025 210)", "oklch(51% 0.03 210)", "oklch(63% 0.03 210)", "oklch(75% 0.025 210)", "oklch(87% 0.015 210)", "oklch(95% 0.006 210)"] },
+      "fg": { "role": "neutral", "displayName": "Ivory", "tonalRamp": ["oklch(15% 0.005 120)", "oklch(27% 0.01 120)", "oklch(39% 0.015 120)", "oklch(51% 0.02 120)", "oklch(63% 0.025 120)", "oklch(75% 0.025 120)", "oklch(87% 0.02 120)", "oklch(95% 0.012 120)"] },
+      "muted": { "role": "neutral", "displayName": "Muted Sea Glass", "tonalRamp": ["oklch(15% 0.008 190)", "oklch(27% 0.015 190)", "oklch(39% 0.02 190)", "oklch(51% 0.025 190)", "oklch(63% 0.03 190)", "oklch(75% 0.03 190)", "oklch(87% 0.02 190)", "oklch(95% 0.008 190)"] },
+      "accent": { "role": "primary", "displayName": "Action Yellow", "tonalRamp": ["oklch(15% 0.02 90)", "oklch(27% 0.045 90)", "oklch(39% 0.075 90)", "oklch(51% 0.10 90)", "oklch(63% 0.125 90)", "oklch(75% 0.14 90)", "oklch(87% 0.12 90)", "oklch(95% 0.045 90)"] },
+      "focus": { "role": "secondary", "displayName": "Focus Mint", "tonalRamp": ["oklch(15% 0.015 180)", "oklch(27% 0.03 180)", "oklch(39% 0.05 180)", "oklch(51% 0.07 180)", "oklch(63% 0.085 180)", "oklch(75% 0.09 180)", "oklch(87% 0.075 180)", "oklch(95% 0.025 180)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Landing Display", "purpose": "Hero only; narrow-screen clamp and leading are recorded in DESIGN.md." },
+      "headline": { "displayName": "Landing Headline", "purpose": "Landing section headings." },
+      "title": { "displayName": "Landing Title", "purpose": "Setup-step headings." },
+      "app-title": { "displayName": "Workspace Title", "purpose": "Camera preview heading." },
+      "body": { "displayName": "Landing Body", "purpose": "Landing reading text, not a global app leading override." },
+      "app-section": { "displayName": "Panel Heading", "purpose": "Compact settings and source headings." },
+      "label": { "displayName": "Field Label", "purpose": "App field labels." },
+      "check-label": { "displayName": "Checkbox Label", "purpose": "Visible app checkbox labels." }
+    },
+    "shadows": [
+      { "name": "illustrative-card", "value": "0 12px 22px #041c2859", "purpose": "Illustrative playing card only; not an app elevation token." }
+    ],
+    "motion": [
+      { "name": "button-border", "value": "border-color 150ms ease", "purpose": "App button border state; none under reduced motion." },
+      { "name": "example-overlay", "value": "opacity 220ms cubic-bezier(0.16, 1, 0.3, 1), transform 220ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Illustrative reveal with 8px vertical movement; no transition or transform under reduced motion." }
+    ],
+    "breakpoints": [
+      { "name": "workspace-stack-and-landing-intermediate", "value": "1000px" },
+      { "name": "landing-stack", "value": "700px" },
+      { "name": "workspace-narrow", "value": "600px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "App Primary Button", "kind": "button", "refersTo": "button-primary",
+      "description": "Primary workspace action.",
+      "html": "<button class=\"ds-primary\">Start camera</button>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;min-height:2.5rem;padding:.55rem .95rem;border:1px solid transparent;border-radius:.45rem;background:var(--accent);color:#171109;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;transition:border-color 150ms ease}.ds-primary:hover{background:#ffe18a}.ds-primary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}.ds-primary:disabled{opacity:.55;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "App Secondary Button", "kind": "button", "refersTo": "button-secondary",
+      "description": "Supporting workspace action; yellow text and border indicate pressed state.",
+      "html": "<button class=\"ds-secondary\" aria-pressed=\"false\">Mirror preview</button>",
+      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:2.5rem;padding:.55rem .95rem;border:1px solid var(--border-control);border-radius:.45rem;background:#1a414a;color:var(--fg);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;transition:border-color 150ms ease}.ds-secondary:hover{border-color:var(--muted);background:#23535b}.ds-secondary[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}.ds-secondary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}.ds-secondary:disabled{opacity:.55;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}"
+    },
+    {
+      "name": "Landing Launch Link", "kind": "button", "refersTo": "landing-launch",
+      "description": "Landing primary navigation action; scoped landing variables need fallbacks outside the landing.",
+      "html": "<a class=\"ds-launch\" href=\"./app.html\">Launch app <svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\"><path d=\"M4 12h15m-6-6 6 6-6 6\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></a>",
+      "css": ".ds-launch{display:inline-flex;align-items:center;justify-content:space-between;gap:2.5rem;min-height:3.25rem;padding:.8rem 1.25rem;border:1px solid var(--landing-yellow,#ffd45c);border-radius:.4rem;background:var(--landing-yellow,#ffd45c);color:var(--landing-ink,#082c38);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:1rem;font-weight:700;text-decoration:none}.ds-launch:hover{background:#ffe18a}.ds-launch:focus-visible{outline:3px solid currentColor;outline-offset:5px}"
+    },
+    {
+      "name": "Text Field", "kind": "input", "refersTo": "field",
+      "description": "Labelled app field with native text entry.",
+      "html": "<label class=\"ds-field-label\">Set codes<input class=\"ds-field\" type=\"text\" placeholder=\"e.g. woe, mom\"/></label>",
+      "css": ".ds-field-label{display:grid;gap:.4rem;color:var(--muted);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:.8rem;line-height:1.35}.ds-field{width:100%;min-width:0;min-height:2.5rem;padding:.55rem .7rem;border:1px solid var(--border-control);border-radius:.45rem;background:var(--surface-input);color:var(--fg);caret-color:var(--accent);font:inherit;font-size:.85rem}.ds-field::placeholder{color:var(--muted);opacity:1}.ds-field:hover{border-color:var(--muted)}.ds-field:focus-visible{outline:2px solid var(--focus);outline-offset:2px}"
+    },
+    {
+      "name": "Workspace Tabs", "kind": "nav", "refersTo": "tab-selected",
+      "description": "Six-panel navigation; snippet shows appearance, source supplies keyboard and panel logic.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"Scanner panels\"><button role=\"tab\" aria-selected=\"true\">Camera</button><button role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">Recognition</button><button role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">Overlay</button><button role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">Effects</button><button role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">OBS setup</button><button role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">History</button></div>",
+      "css": ".ds-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.4rem;padding:.25rem .25rem .85rem;background:var(--bg)}.ds-tabs button{min-height:2.75rem;padding:.65rem .3rem;border:1px solid transparent;border-radius:.4rem;background:transparent;color:var(--muted);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:.8rem;font-weight:600;cursor:pointer}.ds-tabs button[aria-selected=true]{border-color:var(--border-control);background:#1b4951;color:var(--fg)}.ds-tabs button:hover{background:var(--surface);color:var(--fg)}.ds-tabs button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}@media(max-width:1000px) and (min-width:601px){.ds-tabs{grid-template-columns:repeat(6,minmax(0,1fr))}}"
+    },
+    {
+      "name": "Resolution Tag", "kind": "chip", "refersTo": "resolution-tag",
+      "description": "Noninteractive canvas-resolution metadata.",
+      "html": "<span class=\"ds-resolution\">1920 × 1080</span>",
+      "css": ".ds-resolution{display:inline-block;padding:.3rem .55rem;border:1px solid var(--border);border-radius:.35rem;color:var(--muted);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:.75rem;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Settings Panel", "kind": "card", "refersTo": "controls-panel",
+      "description": "Tonal app container with separated padded groups.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-panel-heading\"><h2>Camera</h2><p>Select your camera and start scanning.</p></header><div class=\"ds-panel-group\">Camera settings</div></section>",
+      "css": ".ds-panel{min-width:0;border:1px solid var(--border);border-radius:.75rem;background:var(--surface);color:var(--fg);font-family:'Segoe UI',system-ui,-apple-system,sans-serif}.ds-panel-heading,.ds-panel-group{padding:1.25rem}.ds-panel-heading h2{margin:0;font-size:1rem;line-height:1.35}.ds-panel-heading p{margin:.25rem 0 0;color:var(--muted);font-size:.8rem;line-height:1.4}.ds-panel-group{border-top:1px solid var(--border);font-size:.85rem}"
+    },
+    {
+      "name": "Inline Detail Sizing", "kind": "custom", "refersTo": "checkbox-checked",
+      "description": "Checked detail with adjacent pixel override and SVG reset; source handles inheritance, disablement and reset logic.",
+      "html": "<div class=\"ds-detail\"><label class=\"ds-check\"><input class=\"ds-check-input\" type=\"checkbox\" checked/><span class=\"ds-check-control\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 16 16\" fill=\"none\" aria-hidden=\"true\"><path d=\"m3.5 8 3 3 6-6\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></span><span>Card name</span></label><span class=\"ds-size\"><label class=\"ds-sr\" for=\"ds-name-size\">Card name text size</label><input id=\"ds-name-size\" type=\"number\" placeholder=\"30\"/><span aria-hidden=\"true\">px</span><button aria-label=\"Use inherited size for Card name text size\" title=\"Use inherited size\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 16 16\" fill=\"none\" aria-hidden=\"true\"><path d=\"m4 4 8 8m0-8-8 8\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"/></svg></button></span></div>",
+      "css": ".ds-detail{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.5rem;font-family:'Segoe UI',system-ui,-apple-system,sans-serif}.ds-check{position:relative;display:flex;align-items:center;gap:.6rem;min-height:1.5rem;color:var(--fg);font-size:.85rem;line-height:1.35;cursor:pointer}.ds-check-input,.ds-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.ds-check-control{display:grid;flex:0 0 1.1rem;place-items:center;width:1.1rem;height:1.1rem;border:1px solid var(--border-control);border-radius:.25rem;background:var(--surface-input)}.ds-check-control svg{display:none}.ds-check-input:checked+.ds-check-control{background:var(--accent);border-color:var(--accent);color:#16120a}.ds-check-input:checked+.ds-check-control svg{display:block}.ds-check-input:focus-visible+.ds-check-control{outline:2px solid var(--focus);outline-offset:3px}.ds-size{display:inline-flex;align-items:center;gap:.3rem;color:var(--muted);font-size:.8rem}.ds-size input{width:4.5rem;min-width:0;min-height:2rem;padding:.3rem .5rem;border:1px solid var(--border-control);border-radius:.45rem;background:var(--surface-input);color:var(--fg);caret-color:var(--accent);font:inherit;font-size:.85rem}.ds-size input::placeholder{color:var(--muted);opacity:1}.ds-size input:hover{border-color:var(--muted)}.ds-size button{display:inline-grid;place-items:center;width:1.6rem;height:1.6rem;padding:0;border:1px solid var(--border-control);border-radius:.35rem;background:transparent;color:var(--muted);cursor:pointer}.ds-size input:focus-visible,.ds-size button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}.ds-size button[hidden]{visibility:hidden;display:inline-grid}.ds-size input:disabled{opacity:.5}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Tabletop",
+    "overview": "A matte printed-playmat world: teal fields, deep ink working zones, ivory lettering and yellow moments of action. Thin rules divide continuous surfaces rather than making every item a floating card. Landing display lettering is expressive; the streaming workspace translates the same materials into quiet, compact controls.\n\nThe shared palette does not imply identical typography or density. The landing uses self-hosted Bricolage Grotesque for headings; the app uses the system UI stack for operative text. The display face is not loaded by the app entry point.",
+    "keyCharacteristics": [
+      "Matte tonal zones with thin, visible boundaries.",
+      "Yellow actions and selected controls against ink and teal.",
+      "Expressive landing headings; restrained, labelled app controls.",
+      "SVG iconography and visible keyboard focus."
+    ],
+    "rules": [
+      { "name": "The Yellow Has Work Rule", "body": "Yellow marks actions, selected controls and live editing or result information; it is not restricted to buttons.", "section": "colors" },
+      { "name": "The Two Registers Rule", "body": "Keep Bricolage's expressive landing headings distinct from the app's compact system UI hierarchy.", "section": "typography" },
+      { "name": "The Mat Before Lift Rule", "body": "Use tonal zones and rules for interface depth; reserve the physical-card shadow for the illustrative object.", "section": "elevation" },
+      { "name": "The Continuous Preview Rule", "body": "Switching panels changes the settings view without unmounting either the camera stage or preview iframe.", "section": "components" }
+    ],
+    "dos": [
+      "Do retain matte tonal zones, thin boundaries and stronger input edges.",
+      "Do use the expressive landing and restrained app type registers for their established roles.",
+      "Do keep camera and iframe mounted while settings panels switch.",
+      "Do keep detail-size overrides inline with their checkbox and retain accessible labels.",
+      "Do preserve visible keyboard focus, SVG controls and reduced-motion fallbacks."
+    ],
+    "donts": [
+      "Don't turn the illustrative card's soft shadow into app panel elevation.",
+      "Don't replace the app's labelled native controls with decorative display treatments.",
+      "Don't hide the landing launch action with secondary mobile navigation.",
+      "Don't turn illustration microtype into a reusable body-text size."
+    ]
+  }
+}

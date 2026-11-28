@@ -1,4 +1,4 @@
-# obs-mtg-scanner
+# ManaCast
 
 A web app that identifies Magic: The Gathering cards held up to your webcam and shows an info panel with the card image, set, rarity, and current price. It also gives you an overlay URL to add to OBS as a Browser Source.
 
@@ -6,10 +6,10 @@ Recognition runs entirely in your browser using a fork of [CollectorVision](http
 
 ## Using the scanner and OBS
 
-1. Open the app in a regular desktop browser (Chrome, Edge, or Firefox).
+1. Open the website in a regular desktop browser (Chrome, Edge, or Firefox), then choose **Launch app** to open the streaming workspace.
 2. Choose a webcam and start scanning. The first load downloads the models and live catalog; later loads reuse the browser cache. An internet connection is needed to check the live catalog feed.
 3. In OBS, enable the WebSocket server in **Tools → WebSocket Server Settings**. Keep the default port (`4455`) or enter your chosen port and password in the app.
-4. Use **Copy URL** under *OBS Browser Source*, then add an OBS **Browser Source** with that URL. Size and position it to match the camera feed so the card panel follows the detected card.
+4. In the **OBS setup** panel, use **Copy URL** under *OBS Browser Source*, then add an OBS **Browser Source** with that URL. Size and position it to match the camera feed so the card panel follows the detected card.
 5. Keep the scanner tab open while streaming. OBS and the scanner communicate directly on `localhost`; no card state is relayed through Vercel. OBS doesn't need camera permissions or the `--enable-media-stream` flag.
 
 The app also previews the same overlay over its camera feed. If another app (including an OBS *Video Capture Device* source) is already using the webcam, select **OBS Virtual Camera** in the app or release the camera in the other app.
@@ -51,8 +51,10 @@ The default port is omitted from the URL; changing to a custom port requires cop
 | `ts` | `8`–`96` | `16` | Base text size in canvas pixels for all overlay text |
 | `nts` | `8`–`96` | inherits (1.25 × `ts`) | Card name size in the pinned name |
 | `dts` | `8`–`96` | inherits `ts` | Base text size of the pinned details |
+| `tts` | `8`–`96` | inherits `ts` | Base text size of the total value component |
 | `dsz` | comma-separated `field:size`, e.g. `set:14,price:24` | inherits | Text size of individual detail lines |
 | `fts` | `8`–`96` | inherits `ts` | Base text size of the follow panel |
+| `bg` | comma-separated `component:opacity`, e.g. `name:0.5,details:1` | `0.88` per panel | Background opacity (`0`–`1`) for `name`, `details`, `total`, `highest`, and `follow`. Text and artwork stay opaque. Each panel also has a 0–100% slider in the app. |
 | `follow` | `1` / `0` | `0` | Show a compact panel beside the tracked card |
 | `sides` | comma-separated `top`, `bottom`, `left`, `right`, or `none` | `top,bottom` | Sides of the card the follow panel may use; it picks the allowed side with the most room |
 | `duration` | seconds | `8` | How long the panel stays after the card leaves the frame (`0` = until the next card) |
@@ -68,7 +70,7 @@ The default port is omitted from the URL; changing to a custom port requires cop
 | `mirror` | `1` / `0` | `0` | Mirror the video (recognition always uses the unmirrored frame) |
 | `ignore` | JSON array of `{x,y,width,height}` objects | none | Ignore boxes in unmirrored frame fractions (`0`–`1`); draw, move, and resize them in the camera preview. Previously saved rectangles are migrated; non-rectangular zones are ignored. |
 | `theme` | `dark`, `light` | `dark` | Panel theme |
-| `accent` | hex color | `f59e0b` | Panel accent color |
+| `accent` | hex color | `ffd45c` | Panel accent color |
 | `debug` | `1` / `0` | `0` | Show the detection outline, FPS, and scanner status |
 
 Older `scale` and `iw` options are still read: `scale` becomes `ts` (16 × scale) and `iw` sets the picture box size.
@@ -99,7 +101,7 @@ npm test           # vitest
 npm run typecheck
 ```
 
-`npm run dev` serves the app and its `/overlay` page through Vite. OBS must be running locally for the overlay to receive card updates. `npm run build && npm run preview` does the same for a production build.
+`npm run dev` serves the landing page, streaming workspace at `/app.html`, and `/overlay` page through Vite. Existing scanner links with query options still open the workspace with those options intact. OBS must be running locally for the overlay to receive card updates. `npm run build && npm run preview` does the same for a production build.
 
 `npm run dev` and `npm run build` first run `npm run setup`. That copies the forked scanner sources from `collectorvision/` and downloads CollectorVision's prebuilt model/catalog bundle (~43 MB, cached in `.cache/`) into `public/collectorvision/`. Run `node scripts/fetch-collectorvision.mjs --force` to refresh it. Extraction needs a `tar` with zstd support (built into Windows 10+ and macOS).
 
