@@ -35,7 +35,7 @@ The streamer opens the app in a desktop browser, selects a webcam, starts scanni
 
 ## Brand Commitments
 
-The product is named MTG Card Scanner. No additional voice or identity constraints have been established.
+The product is named ManaCast. Its identity combines a card with broadcast signals in the existing tabletop teal, ink, ivory, and yellow palette.
 
 ## Evidence on Hand
 

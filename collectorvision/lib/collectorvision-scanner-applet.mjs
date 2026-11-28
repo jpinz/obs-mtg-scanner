@@ -4,6 +4,26 @@ function versionedUrl(path) {
   return url.href;
 }
 
+// Background, OBS logo and crossed-out camera landmarks in a 32x18 thumbnail.
+// Check the combination, not just blue pixels, so ordinary camera scenes still scan.
+const OBS_IDLE_LANDMARKS = [
+  [2, 5, 33, 51, 110], [8, 9, 33, 51, 110],
+  [4, 16, 24, 27, 49], [24, 16, 24, 27, 49], [24, 2, 31, 43, 84],
+  [15, 2, 120, 122, 132], [13, 3, 135, 135, 142], [12, 4, 126, 130, 144],
+  [15, 4, 25, 24, 25], [14, 6, 20, 20, 20], [15, 6, 74, 73, 73],
+  [17, 6, 20, 20, 20], [18, 9, 111, 120, 152], [15, 14, 142, 142, 142],
+];
+
+function isObsIdleFrame({ data }) {
+  return OBS_IDLE_LANDMARKS.every(([x, y, red, green, blue], index) => {
+    const offset = (y * 32 + x) * 4;
+    const tolerance = index < 5 ? 15 : 35;
+    return Math.abs(data[offset] - red) <= tolerance
+      && Math.abs(data[offset + 1] - green) <= tolerance
+      && Math.abs(data[offset + 2] - blue) <= tolerance;
+  });
+}
+
 const DEFAULT_CONFIG = {
   manifestUrl: new URL("../assets/manifest.json", import.meta.url).href,
   assetBasePath: new URL("../assets", import.meta.url).href,
@@ -227,6 +247,11 @@ export class CollectorVisionScannerApplet extends EventTarget {
     this.fpsEma = null;
     this.captureCanvas = document.createElement("canvas");
     this.captureCtx = this.captureCanvas.getContext("2d");
+    this.idleCanvas = document.createElement("canvas");
+    this.idleCanvas.width = 32;
+    this.idleCanvas.height = 18;
+    this.idleCtx = this.idleCanvas.getContext("2d", { willReadFrequently: true });
+    this.idleCtx.imageSmoothingQuality = "high";
     this.elements = this.createElements();
     this.mount();
   }
@@ -507,6 +532,12 @@ export class CollectorVisionScannerApplet extends EventTarget {
       return;
     }
     if (!this.drawCaptureFrame()) {
+      if (Number(this.config.scanIntervalMs) <= 0) {
+        this.timer = setTimeout(() => {
+          this.timer = null;
+          this.tick();
+        }, 100);
+      }
       return;
     }
     this.workerBusy = true;
@@ -551,6 +582,12 @@ export class CollectorVisionScannerApplet extends EventTarget {
       this.captureCanvas.width,
       this.captureCanvas.height,
     );
+    this.idleCtx.drawImage(this.captureCanvas, 0, 0, 32, 18);
+    if (isObsIdleFrame(this.idleCtx.getImageData(0, 0, 32, 18))) {
+      this.handleResult({ cardPresent: false, cornersValid: false, cardId: null, score: 0, corners: [] });
+      this.setStatus("OBS Virtual Camera is idle. Start its video output to scan.");
+      return false;
+    }
     if (this.config.ignoreZones.length) {
       this.captureCtx.save();
       this.captureCtx.fillStyle = "#000";

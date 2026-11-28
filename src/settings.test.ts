@@ -16,7 +16,7 @@ describe("parseSettings", () => {
   it("parses every supported parameter", () => {
     const s = parseSettings(
       "?currency=eur_foil&finishes=1&image=0&name=0&info=off&details=price,set,confidence&ipos=0.1,0.2,0.3,0.4&npos=0.3,0.4,0.2,0.05&dpos=0.5,0.6,0.25,0.3"
-        + "&ts=20&nts=32&dts=14&dsz=price:28,SET:12,bogus:9,rarity:abc&fts=18"
+        + "&ts=20&nts=32&dts=14&tts=28&dsz=price:28,SET:12,bogus:9,rarity:abc&fts=18"
         + "&follow=1&sides=right,left&duration=0&threshold=0.7&assumefoil=on&ignoreart=1&ignoretokens=on&ignoreunplayable=yes"
         + "&setcode=woe&query=t%3Acreature&camera=abc&res=1920x1080&mirror=1&theme=light&accent=22c55e&debug=on",
     );
@@ -32,6 +32,7 @@ describe("parseSettings", () => {
       showTotal: true,
       showHighest: false,
       details: ["set", "price", "confidence"],
+      backgroundOpacity: DEFAULT_SETTINGS.backgroundOpacity,
       layout: {
         image: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
         name: { x: 0.3, y: 0.4, width: 0.2, height: 0.05 },
@@ -42,6 +43,7 @@ describe("parseSettings", () => {
       textSize: 20,
       nameTextSize: 32,
       detailsTextSize: 14,
+      totalTextSize: 28,
       detailTextSizes: { set: 12, price: 28 },
       followTextSize: 18,
       follow: true,
@@ -68,6 +70,24 @@ describe("parseSettings", () => {
     const settings = parseSettings("?catalog=v1&setcode=woe");
     expect(settings).toEqual({ ...DEFAULT_SETTINGS, setCodes: ["woe"] });
     expect(serializeSettings(settings).has("catalog")).toBe(false);
+  });
+
+  it("round-trips independent background opacities through saved and overlay settings", () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      backgroundOpacity: { name: 0, details: 0.5, total: 1, highest: 0.25, follow: 0.75 },
+    };
+    expect(parseSettings(serializeSettings(settings))).toEqual(settings);
+    expect(parseSettings(serializeOverlaySettings(settings))).toEqual(settings);
+    expect(serializeSettings(DEFAULT_SETTINGS).has("bg")).toBe(false);
+  });
+
+  it("clamps background opacity and keeps other panels at their defaults", () => {
+    expect(parseSettings("bg=name:-1,details:2,total:NaN,highest:Infinity,follow:,image:0").backgroundOpacity)
+      .toEqual({ name: 0, details: 1, total: 0.88, highest: 0.88, follow: 0.88 });
+    expect(parseSettings("bg=name:0").backgroundOpacity)
+      .toEqual({ ...DEFAULT_SETTINGS.backgroundOpacity, name: 0 });
+    expect(parseSettings("bg=invalid,name").backgroundOpacity).toEqual(DEFAULT_SETTINGS.backgroundOpacity);
   });
 
   it("round-trips celebration settings for the app and overlay and validates the threshold", () => {
@@ -106,12 +126,24 @@ describe("parseSettings", () => {
     expect(parseSettings("?npos=0.1,0.2").layout.name).toEqual({ ...DEFAULT_SETTINGS.layout.name, x: 0.1, y: 0.2 });
   });
 
-  it("round-trips the total overlay visibility and layout", () => {
-    const settings = { ...DEFAULT_SETTINGS, showTotal: false, layout: setLayoutBox(DEFAULT_SETTINGS.layout, "total", { x: 0.3 }) };
+  it("round-trips the total overlay visibility, text size, and layout", () => {
+    const settings = { ...DEFAULT_SETTINGS, showTotal: false, totalTextSize: 24, layout: setLayoutBox(DEFAULT_SETTINGS.layout, "total", { x: 0.3 }) };
     const query = serializeOverlaySettings(settings);
     expect(query.get("total")).toBe("0");
+    expect(query.get("tts")).toBe("24");
     expect(query.get("tpos")).toBe("0.3,0.05,0.18,0.09");
     expect(parseSettings(query)).toEqual(settings);
+    expect(parseSettings(serializeSettings(settings))).toEqual(settings);
+  });
+
+  it("clamps the total text size and clears invalid or empty overrides", () => {
+    expect(parseSettings("tts=2").totalTextSize).toBe(8);
+    expect(parseSettings("tts=500").totalTextSize).toBe(96);
+    for (const value of ["", "abc", "Infinity"]) {
+      const settings = parseSettings(`tts=${value}`);
+      expect(settings.totalTextSize).toBeNull();
+      expect(serializeOverlaySettings(settings).has("tts")).toBe(false);
+    }
   });
 
   it("defaults the highest value card to off and round-trips its overlay settings", () => {

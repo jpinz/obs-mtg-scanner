@@ -311,7 +311,8 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
         </Pinned>
       </Show>
       <Show when={settings().showTotal}>
-        <Pinned item="total" box={box("total")} canvas={canvas()} fontSize={settings().textSize}
+        <Pinned item="total" box={box("total")} canvas={canvas()} fontSize={settings().totalTextSize ?? settings().textSize}
+          backgroundOpacity={settings().backgroundOpacity.total}
           visible={true} editing={editing()} dragging={dragMode("total")} {...pinnedProps}>
           <div class="total-value">
             <span>Total value</span>
@@ -322,6 +323,7 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
       </Show>
       <Show when={settings().showHighest}>
         <Pinned item="highest" box={box("highest")} canvas={canvas()} fontSize={settings().textSize}
+          backgroundOpacity={settings().backgroundOpacity.highest}
           visible={displayHighest() !== null} editing={editing()} dragging={dragMode("highest")} {...pinnedProps}>
           <Show when={displayHighest()}>
             {(current) => (
@@ -340,6 +342,7 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
       <Show when={settings().showName}>
         <Pinned
           item="name"
+          backgroundOpacity={settings().backgroundOpacity.name}
           box={box("name")}
           canvas={canvas()}
           fontSize={settings().textSize}
@@ -354,6 +357,7 @@ export function Overlay(props: { settings: OverlaySettings; sessionId: string | 
       <Show when={settings().showDetails && settings().details.length > 0}>
         <Pinned
           item="details"
+          backgroundOpacity={settings().backgroundOpacity.details}
           box={box("details")}
           canvas={canvas()}
           fontSize={settings().detailsTextSize ?? settings().textSize}

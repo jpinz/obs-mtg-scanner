@@ -36,6 +36,7 @@ export function Pinned(props: {
   canvas: Size;
   aspect?: number;
   fontSize: number;
+  backgroundOpacity?: number;
   visible: boolean;
   editing: boolean;
   dragging: DragMode | null;
@@ -81,7 +82,10 @@ export function Pinned(props: {
       onPointerUp={(event) => props.onDragEnd(event, false)}
       onPointerCancel={(event) => props.onDragEnd(event, true)}
     >
-      <div class={["pinned__content", { surface: props.item !== "image" }]} style={fitted()}>
+      <div
+        class={["pinned__content", { surface: props.item !== "image" }]}
+        style={{ ...fitted(), "--panel-opacity": props.backgroundOpacity }}
+      >
         {props.children}
       </div>
       <Show when={props.editing}>
